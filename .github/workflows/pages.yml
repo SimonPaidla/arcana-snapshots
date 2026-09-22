@@ -1,0 +1,61 @@
+# Publishes what the app actually fetches.
+#
+# Archive format and serving format are not the same thing. The archive is
+# one file per crawl, immutable; a fresh installation does not want to
+# fetch a thousand of those. scripts/build-index.js turns them into three
+# files - what exists, all metrics without individual offers, and the
+# newest run in full - and this workflow puts those on GitHub Pages.
+#
+# Nothing here is committed. All three files are derived and can be
+# rebuilt from the archive at any time, so keeping them in the history
+# would only add noise to every merge.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+    # Game data is served straight from the repository and is not part of
+    # the index, so a game-data commit has no reason to rebuild this.
+    paths: ['snapshots/**']
+  workflow_dispatch:
+  schedule:
+    # A safety net, not the main path. If a merge ever fails to start this
+    # workflow, the published index is at most a few hours behind rather
+    # than stale until somebody notices.
+    - cron: '43 */6 * * *'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time, and never cancel one halfway - a cancelled
+# deploy would leave the published site on an older build.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build the index
+        run: node scripts/build-index.js
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

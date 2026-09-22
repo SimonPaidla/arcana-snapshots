@@ -1,0 +1,68 @@
+# Builds the game data from rAthena, once a day, for everyone.
+#
+# Every installation used to fetch and parse about seventy files from
+# rAthena itself, always with the same result. It is built here instead
+# and the app downloads four files.
+#
+# The result goes to a branch of its own, not to main.
+#
+# Not by preference. A pull request opened with GITHUB_TOKEN starts no
+# further workflow, so the validating run would never happen and
+# auto-merge would wait for a check that cannot arrive. Pushing to main
+# instead needs a bypass from the ruleset, and GitHub does not grant the
+# Actions app one - a deliberate refusal, since any collaborator could
+# otherwise write a workflow that pushes wherever they liked. What is
+# left is a deploy key or a token kept as a secret, and this project
+# keeps no credentials.
+#
+# A branch costs none of that. The ruleset guards main, the archive lives
+# on main, and data that can be rebuilt from rAthena any day sits beside
+# it with a history of its own - the arrangement gh-pages has used for a
+# decade. Nothing is published unless validate-gamedata.js accepts it.
+name: Game data
+
+on:
+  schedule:
+    # 02:17 UTC. Not midnight: GitHub delays scheduled runs under load and
+    # the top of the hour is the busiest slot. Not local midnight either -
+    # cron here is UTC only, and chasing Berlin time would mean editing
+    # this line twice a year for data that changes a few times a season.
+    - cron: '17 2 * * *'
+  # So a broken upstream day can be repaired without waiting for tomorrow.
+  workflow_dispatch:
+
+# Only what it needs: writing to a branch that no ruleset protects.
+permissions:
+  contents: write
+
+concurrency:
+  group: gamedata
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The builder needs a YAML parser and nothing else.
+      - run: npm install --no-save --no-audit --no-fund yaml
+
+      - name: Build from rAthena
+        env:
+          # Only used to read which rAthena commit the data came from.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/build-gamedata.js
+
+      # Says so and stops when rAthena has not moved, which is most days.
+      - name: Publish if anything changed
+        run: |
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          scripts/publish-gamedata.sh gamedata gamedata
