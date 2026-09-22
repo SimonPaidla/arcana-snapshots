@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 64" width="200" height="64">
+  <!-- The lockup for dark backgrounds: the mark and the wordmark, 8 units apart. The wordmark
+       is the app's brand type - Segoe UI Variable Display at 600, uppercase, tracked .18em -
+       the same three decisions the header makes. -->
+  <g transform="matrix(0.87 0.5 -0.7 0.7 24.4 12.2)">
+    <rect x="0" y="0" width="40" height="28" rx="4" fill="#1a1d26" stroke="#e0a44a" stroke-width="3.2"/>
+    <path d="M4 24 L14 4 L21 4 L11 24 Z" fill="#e6e8ee" opacity=".09"/>
+    <rect x="3.2" y="3.2" width="33.6" height="21.6" rx="2.2" fill="none" stroke="#e6e8ee" stroke-width=".9" opacity=".55"/>
+    <path d="M7 19 L15 11 L21 16 L31 6" fill="none" stroke="#eeb45c" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="31" cy="6" r="2.6" fill="#eeb45c"/>
+  </g>
+  <text x="70" y="40.5" font-family="Segoe UI Variable Display, Segoe UI, system-ui, sans-serif" font-size="24" font-weight="600" letter-spacing="4.32" fill="#e6e8ee">ARCANA</text>
+</svg>
