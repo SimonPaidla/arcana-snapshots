@@ -18,7 +18,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { validateSnapshot } = require('./validate.js');
+const { validateSnapshot, fingerprintOf } = require('./validate.js');
 
 // How many earlier runs are read for the plausibility check. Reading all of
 // them would be a quarter of a gigabyte after a year.
@@ -85,6 +85,9 @@ function main() {
         crawledAt: d.crawledAt,
         cardCount: Array.isArray(d.cards) ? d.cards.length : null,
         offerCount: d.offerCount ?? null,
+        // So a run that is identical to one already here is refused: it
+        // carries nothing new and skews every figure that counts crawls.
+        fingerprint: fingerprintOf(d),
       });
     } catch { /* an unreadable older file must not stall the check */ }
   }
@@ -119,7 +122,7 @@ function main() {
       // A file that passed counts as comparison material for the next one.
       known.push({
         crawledAt: data.crawledAt, cardCount: data.cards.length,
-        offerCount: data.offerCount,
+        offerCount: data.offerCount, fingerprint: fingerprintOf(data),
       });
     }
   }

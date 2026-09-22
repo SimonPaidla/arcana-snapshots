@@ -10,13 +10,16 @@
  * and in CI before a pull request is merged. Two separate copies would
  * drift apart, and the check would end up either too strict or absent.
  *
- * No Electron, no fs, no dependencies - so both sides can just require it.
+ * No Electron, no fs, nothing outside Node's own modules - so both sides
+ * can just require it.
  *
  * Snapshots are anonymous: nothing records who submitted one. That is a
  * deliberate trade. It means a bad source cannot be excluded after the
  * fact, so the checks below are the only line of defence, and they are
  * written accordingly.
  */
+
+const crypto = require('crypto');
 
 const SNAPSHOT_SCHEMA = 4;
 
@@ -48,6 +51,71 @@ const TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 
 const isInt = (v) => Number.isInteger(v);
 const isNum = (v) => Number.isFinite(v);
+
+/**
+ * What a crawl saw, as one value. Only the card data: two runs that found
+ * exactly the same market are the same observation of it, whatever time
+ * is written on them.
+ */
+function fingerprintOf(snapshot) {
+  return crypto.createHash('sha256')
+    .update(JSON.stringify(snapshot?.cards ?? null)).digest('hex');
+}
+
+/**
+ * One market moment, one observation.
+ *
+ * Statistics count crawls. That is right as long as every crawl is an
+ * independent look at the market, and wrong the moment the same look is
+ * filed twice - the median then hears one voice several times.
+ *
+ * Measured on the real archive with three identical crawls added: the
+ * usual price moved on 222 of 370 cards, in the worst case from 299,999
+ * to 999,999. That figure is the buying advice's veto, so it decides what
+ * gets recommended. Sale detection was untouched, because nothing
+ * disappears between two identical crawls.
+ *
+ * Two rules, and the second one is the one the archive does not need yet:
+ *
+ *   - identical card data is the same observation, however it is dated
+ *   - crawls closer together than MIN_GAP_MS are one moment, whoever
+ *     took them. With several people crawling, two runs minutes apart
+ *     say one thing about the market and would otherwise say it twice.
+ *
+ * The fullest crawl in a window wins, not the first: it is the better
+ * view of the same moment. Nothing is deleted - this is about what the
+ * statistics count, and the archive keeps everything.
+ */
+const MIN_GAP_MS = 15 * 60 * 1000;
+
+function dedupeSnapshots(snapshots, { minGapMs = MIN_GAP_MS } = {}) {
+  const sorted = [...(snapshots || [])]
+    .filter(Boolean)
+    .sort((a, b) => String(a.crawledAt).localeCompare(String(b.crawledAt)));
+
+  const seen = new Set();
+  const out = [];
+  for (const snapshot of sorted) {
+    const print = fingerprintOf(snapshot);
+    if (seen.has(print)) continue;
+
+    const last = out[out.length - 1];
+    const gap = last
+      ? Date.parse(snapshot.crawledAt) - Date.parse(last.crawledAt)
+      : Infinity;
+    if (Number.isFinite(gap) && gap < minGapMs) {
+      // The same moment. Keep whichever saw more of it.
+      if ((snapshot.offerCount ?? 0) > (last.offerCount ?? 0)) {
+        out[out.length - 1] = snapshot;
+        seen.add(print);
+      }
+      continue;
+    }
+    seen.add(print);
+    out.push(snapshot);
+  }
+  return out;
+}
 
 function median(values) {
   const s = [...values].sort((a, b) => a - b);
@@ -131,6 +199,26 @@ function validateSnapshot(data, context = {}) {
     }
     const duplicate = known.some((k) => k.crawledAt === data.crawledAt);
     if (duplicate) reject(`A run for ${data.crawledAt} already exists.`);
+  }
+
+  // --- The same look at the market, filed twice -------------------------
+  // A crawl whose card data matches one already here carries no new
+  // information, and it is not harmless: statistics count crawls, so the
+  // median hears one voice several times. Measured on the real archive
+  // with three identical runs added, the usual price moved on 222 of 370
+  // cards - in the worst case from 299,999 to 999,999. That figure is
+  // what the buying advice vetoes against.
+  //
+  // Only checked where the comparison material carries a fingerprint; a
+  // caller that computes none loses nothing else.
+  if (Array.isArray(data.cards) && data.cards.length) {
+    const print = fingerprintOf(data);
+    const twin = known.find((k) => k.fingerprint && k.fingerprint === print);
+    if (twin) {
+      reject(`Identical to the run of ${twin.crawledAt} - same cards, same `
+        + 'offers, nothing moved. A crawl filed twice skews every figure '
+        + 'that counts crawls.');
+    }
   }
 
   // --- Cards ------------------------------------------------------------
@@ -227,6 +315,7 @@ function validateSnapshot(data, context = {}) {
 }
 
 module.exports = {
-  validateSnapshot, fileNameFor, pathFor, median,
+  validateSnapshot, fingerprintOf, dedupeSnapshots, MIN_GAP_MS,
+  fileNameFor, pathFor, median,
   SNAPSHOT_SCHEMA, PRICE_MAX, CLOCK_SKEW_MS, CARD_SHARE_ERROR, CARD_SHARE_WARN,
 };

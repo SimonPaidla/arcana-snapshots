@@ -73,6 +73,29 @@ The archive is not the serving format. One file per crawl is right for
 keeping data; it is wrong for an installation that wants the current state
 and would otherwise fetch a thousand files to get it.
 
+### One market moment, one observation
+
+Statistics count crawls. That is right while every crawl is an independent
+look at the market, and wrong the moment the same look is filed twice - the
+median then hears one voice several times.
+
+Measured on this archive with three identical runs added: the usual price
+moved on **222 of 370 cards**, in the worst case from 299,999 to 999,999.
+That figure is what the buying advice vetoes against, so a duplicate does
+not merely add noise, it changes what gets recommended. Sale detection was
+untouched: nothing disappears between two identical crawls.
+
+Two rules, in `validate.js` so the app and this repository apply the same
+one:
+
+- identical card data is the same observation, whatever time is on it
+- runs closer together than **15 minutes** are one moment, whoever took
+  them - the fullest of them counts
+
+`check-pr.js` refuses a run identical to one already here, and the published
+index counts the rest once. Nothing is deleted: the archive keeps every
+file, and `index.json` names what it left out and why.
+
 `.github/workflows/pages.yml` therefore publishes three derived files to
 GitHub Pages after every merge:
 

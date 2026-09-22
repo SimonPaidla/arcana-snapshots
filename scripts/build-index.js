@@ -28,6 +28,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { dedupeSnapshots, MIN_GAP_MS } = require('./validate.js');
 
 const ROOT = path.join(__dirname, '..');
 const SOURCE = path.join(ROOT, 'snapshots');
@@ -76,14 +77,45 @@ function main() {
       schemaVersion: data.schemaVersion ?? null,
     });
 
-    if (!newest || data.crawledAt > newest.crawledAt) newest = data;
+    // `newest` is picked from the counted runs further down, not here -
+    // an uncounted twin must not become what everybody downloads.
   }
 
   crawls.sort((a, b) => a.crawledAt.localeCompare(b.crawledAt));
 
+  // --- One market moment, one observation -------------------------------
+  // The archive keeps every file; what is published counts each look at
+  // the market once. A run filed twice gives that moment several votes,
+  // and the figures that count crawls follow it: measured on the real
+  // archive, three identical runs moved the usual price on 222 of 370
+  // cards, worst case from 299,999 to 999,999.
+  //
+  // The same rule the app applies when reading, from the same module, so
+  // the two cannot drift apart.
+  const loaded = crawls.map((c) => ({
+    ...JSON.parse(fs.readFileSync(path.join(ROOT, ...c.path.split('/')), 'utf-8')),
+    __entry: c,
+  }));
+  const counted = new Set(dedupeSnapshots(loaded).map((s) => s.__entry.path));
+  const skipped = crawls.filter((c) => !counted.has(c.path)).map((c) => ({
+    path: c.path, crawledAt: c.crawledAt,
+    reason: `not counted: within ${MIN_GAP_MS / 60000} minutes of another run, `
+      + 'or identical to it',
+  }));
+  if (skipped.length) {
+    console.log(`  ${skipped.length} run(s) not counted:`);
+    for (const s of skipped) console.log(`    ${s.path}`);
+  }
+  const kept = crawls.filter((c) => counted.has(c.path));
+  for (const s of loaded) {
+    if (!counted.has(s.__entry.path)) continue;
+    if (!newest || s.crawledAt > newest.crawledAt) newest = s;
+  }
+  if (newest) delete newest.__entry;
+
   // The series only now, in sorted order - the index in every point refers
-  // to crawls[i].
-  crawls.forEach((crawl, i) => {
+  // to kept[i].
+  kept.forEach((crawl, i) => {
     const data = JSON.parse(fs.readFileSync(path.join(ROOT, ...crawl.path.split('/')), 'utf-8'));
     for (const card of data.cards) {
       if (!Number.isInteger(card.itemId)) continue;
@@ -104,18 +136,21 @@ function main() {
   };
 
   const sizes = {
-    'index.json': write('index.json', { schemaVersion: 4, builtAt, crawls }),
+    // Only the counted runs: the app fetches what this lists, and a run
+    // that changes no figure is not worth a download. What was left out
+    // is named rather than silently dropped.
+    'index.json': write('index.json', { schemaVersion: 4, builtAt, crawls: kept, skipped }),
     'series.json': write('series.json', {
       schemaVersion: 4, builtAt,
       fields: ['crawl', 'min', 'median', 'mean', 'max', 'count'],
-      crawls: crawls.map((c) => c.crawledAt),
+      crawls: kept.map((c) => c.crawledAt),
       cards: Object.fromEntries([...cards].sort((a, b) => a[0] - b[0])),
     }),
     'latest.json': write('latest.json', { schemaVersion: 4, builtAt, snapshot: newest }),
   };
 
   const kb = (n) => `${(n / 1024).toFixed(0)} KB`;
-  console.log(`${crawls.length} crawls, ${cards.size} cards`);
+  console.log(`${kept.length} crawls counted of ${crawls.length}, ${cards.size} cards`);
   for (const [name, size] of Object.entries(sizes)) console.log(`  ${name}: ${kb(size)}`);
   if (!crawls.length) {
     console.log('No snapshot in the archive yet - the files stay empty.');
