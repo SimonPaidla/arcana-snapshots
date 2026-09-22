@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 4,
+  "description": "Price snapshots of the uaRO card market, collected by Arcana.",
+  "source": "https://uaro.net/cp/"
+}

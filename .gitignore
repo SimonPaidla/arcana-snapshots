@@ -1,0 +1,9 @@
+node_modules/
+*.tmp
+build/
+
+# Built by the game-data workflow; not part of the repository.
+.cache-rathena/
+
+# The build output; it is published to the gamedata branch, not to main.
+gamedata/
