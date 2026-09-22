@@ -12,8 +12,14 @@
 # on main, and derived data that can be rebuilt any day sits beside it -
 # the same arrangement gh-pages has used for a decade.
 #
-# Usage: scripts/publish-gamedata.sh <source-dir> <branch>
+# The work happens in a worktree of the checkout, never in a repository
+# of its own. actions/checkout leaves the token in the local config of
+# the repository it checks out; a repository created from scratch carries
+# none of that and asks for a username nobody is there to type.
+#
+# Usage: scripts/publish-gamedata.sh <source-dir> [branch]
 set -euo pipefail
+trap 'echo "publish-gamedata: failed at line $LINENO: $BASH_COMMAND" >&2' ERR
 
 # Absolute: node's require() resolves a relative path against the module
 # it is called from, not against the working directory.
@@ -21,22 +27,25 @@ SOURCE=$(cd "${1:?source directory with the built json}" && pwd)
 BRANCH=${2:-gamedata}
 FILES="cards.json mobs.json drops.json spawns.json"
 
-WORK=$(mktemp -d)
-trap 'rm -rf "$WORK"' EXIT
-
 cd "$(git rev-parse --show-toplevel)"
-REMOTE=$(git remote get-url origin)
 
-git init -q -b "$BRANCH" "$WORK"
-git -C "$WORK" remote add origin "$REMOTE"
-git -C "$WORK" config user.name  "$(git config user.name)"
-git -C "$WORK" config user.email "$(git config user.email)"
+TEMP=$(mktemp -d)
+WORK="$TEMP/publish"          # git worktree add insists the path is new
+cleanup() {
+  git worktree remove --force "$WORK" >/dev/null 2>&1 || true
+  rm -rf "$TEMP"
+}
+trap cleanup EXIT
 
 # Carry the history on if the branch is already there; start one if not.
-if git -C "$WORK" fetch --quiet --depth=1 origin "$BRANCH" 2>/dev/null; then
-  git -C "$WORK" reset --quiet --hard FETCH_HEAD
+if git fetch --quiet --depth=1 origin "$BRANCH" 2>/dev/null; then
+  git worktree add --quiet -B "$BRANCH" "$WORK" FETCH_HEAD
   echo "Continuing the existing $BRANCH branch."
 else
+  git worktree add --quiet --detach "$WORK"
+  git -C "$WORK" checkout --quiet --orphan "$BRANCH"
+  git -C "$WORK" read-tree --empty
+  find "$WORK" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
   echo "Starting the $BRANCH branch."
 fi
 
@@ -59,5 +68,5 @@ SUMMARY=$(node -p "
     + (m.rathena ? \` (rathena \${m.rathena.sha.slice(0, 7)})\` : '');
 ")
 git -C "$WORK" commit --quiet -m "Game data: $SUMMARY"
-git -C "$WORK" push --quiet origin "HEAD:$BRANCH"
+git -C "$WORK" push --quiet origin "HEAD:refs/heads/$BRANCH"
 echo "Published: $SUMMARY"
