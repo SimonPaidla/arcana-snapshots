@@ -145,6 +145,25 @@ function median(values) {
  */
 const fileNameFor = (iso) => `${iso.replace(/[:.]/g, '-')}.json`;
 
+/**
+ * What a snapshot file may be called - the whole name, nothing else.
+ *
+ * A name that arrives from outside is never only a name: it gets joined
+ * onto the snapshot folder to decide where a download lands. On Windows
+ * `path.join` normalises backslashes too, so "..\..\x.json" out of a
+ * published index would put the file somewhere else entirely. The name is
+ * therefore matched against what fileNameFor() produces before anything
+ * is built from it, rather than being trusted because it ends in .json.
+ */
+const SNAPSHOT_FILE_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\.json$/;
+
+/**
+ * @param {*} name  a candidate file name, from anywhere
+ * @returns {boolean} true only for a name this project would have written
+ */
+const isSnapshotFileName = (name) =>
+  typeof name === 'string' && SNAPSHOT_FILE_PATTERN.test(name);
+
 /** Path inside the repository. Flat, one file per crawl. */
 const pathFor = (iso) => `snapshots/${fileNameFor(iso)}`;
 
@@ -327,6 +346,6 @@ function validateSnapshot(data, context = {}) {
 
 module.exports = {
   validateSnapshot, fingerprintOf, dedupeSnapshots, MIN_GAP_MS,
-  fileNameFor, pathFor, median,
+  fileNameFor, pathFor, median, isSnapshotFileName, SNAPSHOT_FILE_PATTERN,
   SNAPSHOT_SCHEMA, PRICE_MAX, CLOCK_SKEW_MS, CARD_SHARE_ERROR, CARD_SHARE_WARN,
 };
