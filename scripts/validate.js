@@ -88,6 +88,14 @@ function fingerprintOf(snapshot) {
  */
 const MIN_GAP_MS = 15 * 60 * 1000;
 
+/**
+ * @param {Array} snapshots           parsed snapshots, in any order
+ * @param {{minGapMs?: number}} [options]
+ * @returns {Array} the snapshots that count as separate observations,
+ *   ascending by crawl time. Nothing is written and nothing is deleted -
+ *   this decides what the statistics count, and the archive keeps
+ *   everything.
+ */
 function dedupeSnapshots(snapshots, { minGapMs = MIN_GAP_MS } = {}) {
   const sorted = [...(snapshots || [])]
     .filter(Boolean)
@@ -98,6 +106,13 @@ function dedupeSnapshots(snapshots, { minGapMs = MIN_GAP_MS } = {}) {
   for (const snapshot of sorted) {
     const print = fingerprintOf(snapshot);
     if (seen.has(print)) continue;
+    // Registered as soon as it has been looked at, not only when it is
+    // kept. A crawl dropped for falling inside the window is still card
+    // data that has now been seen, and the first rule says so however it
+    // is dated - otherwise the same card data turning up again hours
+    // later would count as a fresh look at the market purely because its
+    // twin happened to be dropped for a different reason.
+    seen.add(print);
 
     const last = out[out.length - 1];
     const gap = last
@@ -105,13 +120,9 @@ function dedupeSnapshots(snapshots, { minGapMs = MIN_GAP_MS } = {}) {
       : Infinity;
     if (Number.isFinite(gap) && gap < minGapMs) {
       // The same moment. Keep whichever saw more of it.
-      if ((snapshot.offerCount ?? 0) > (last.offerCount ?? 0)) {
-        out[out.length - 1] = snapshot;
-        seen.add(print);
-      }
+      if ((snapshot.offerCount ?? 0) > (last.offerCount ?? 0)) out[out.length - 1] = snapshot;
       continue;
     }
-    seen.add(print);
     out.push(snapshot);
   }
   return out;
