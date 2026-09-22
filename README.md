@@ -96,6 +96,32 @@ https://raw.githubusercontent.com/SimonPaidla/arcana-snapshots/gamedata/cards.js
 So the two differ on purpose - Pages serves what is derived from the
 archive, the repository serves what is kept.
 
+## Changing anything in here
+
+The ruleset on `main` has an **empty bypass list**, and it has to stay
+empty. Every contributor token is issued from the same account that owns
+this repository, so a bypass for "repository admin" would be a bypass for
+every token as well, and the rule would protect nothing.
+
+The consequence is that nobody can push to `main` directly - not even the
+owner - and `check-pr.js` refuses any pull request touching a path outside
+`snapshots/*.json`. Maintenance therefore takes three steps:
+
+1. *Settings → Rules →* the ruleset *→ Enforcement status:* `Disabled`
+2. `git push`
+3. *Enforcement status:* `Active`
+
+**Step three is not optional.** Between two and three the archive has no
+protection at all: a buggy build could write anything into `snapshots/`
+and nothing would stop it. Do the push and put the rule back in the same
+sitting, not "later".
+
+This is a deliberate trade. The alternative was to let `check-pr.js`
+accept pull requests that touch no snapshot, which would have made
+maintenance ordinary - at the price of a token being able to rewrite the
+check itself. The archive is what matters here, so the inconvenience
+lands on maintenance instead.
+
 ## Copied code
 
 Three files under `scripts/` are copies. Their source is the code
