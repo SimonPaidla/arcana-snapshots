@@ -28,7 +28,9 @@
 
 const fs = require('fs');
 const path = require('path');
-const { dedupeSnapshots, MIN_GAP_MS } = require('./validate.js');
+const {
+  byCard, cardCountOf, dedupeSnapshots, isSnapshotShape, MIN_GAP_MS, SNAPSHOT_SCHEMA,
+} = require('./validate.js');
 
 const ROOT = path.join(__dirname, '..');
 const SOURCE = path.join(ROOT, 'snapshots');
@@ -53,6 +55,7 @@ function allFiles() {
 function main() {
   const files = allFiles();
   const crawls = [];
+  let otherSchema = 0;
   const cards = new Map();
   let newest = null;
 
@@ -63,16 +66,17 @@ function main() {
       console.log(`  skipped (unreadable): ${rel}`);
       continue;
     }
-    if (!data.crawledAt || !Array.isArray(data.cards)) {
-      console.log(`  skipped (not a snapshot): ${rel}`);
+    // Only snapshots of the current schema are listed: a reader of this
+    // index reads that one schema and no other.
+    if (!isSnapshotShape(data)) {
+      otherSchema += 1;
       continue;
     }
-    const withOffers = data.cards.some((c) => Array.isArray(c.offers));
 
     crawls.push({
       path: rel, crawledAt: data.crawledAt,
-      cardCount: data.cards.length, offerCount: data.offerCount ?? null,
-      bytes: fs.statSync(full).size, withOffers,
+      cardCount: cardCountOf(data), offerCount: data.offerCount ?? null,
+      bytes: fs.statSync(full).size, withOffers: true,
       complete: data.complete ?? null,
       schemaVersion: data.schemaVersion ?? null,
     });
@@ -82,6 +86,7 @@ function main() {
   }
 
   crawls.sort((a, b) => a.crawledAt.localeCompare(b.crawledAt));
+  if (otherSchema) console.log(`  ${otherSchema} file(s) not of schema ${SNAPSHOT_SCHEMA}, not listed`);
 
   // --- One market moment, one observation -------------------------------
   // The archive keeps every file; what is published counts each look at
@@ -117,7 +122,7 @@ function main() {
   // to kept[i].
   kept.forEach((crawl, i) => {
     const data = JSON.parse(fs.readFileSync(path.join(ROOT, ...crawl.path.split('/')), 'utf-8'));
-    for (const card of data.cards) {
+    for (const card of byCard(data).cards) {
       if (!Number.isInteger(card.itemId)) continue;
       if (!cards.has(card.itemId)) cards.set(card.itemId, []);
       // Compact as an array, not an object: across hundreds of cards and
@@ -139,14 +144,14 @@ function main() {
     // Only the counted runs: the app fetches what this lists, and a run
     // that changes no figure is not worth a download. What was left out
     // is named rather than silently dropped.
-    'index.json': write('index.json', { schemaVersion: 4, builtAt, crawls: kept, skipped }),
+    'index.json': write('index.json', { schemaVersion: SNAPSHOT_SCHEMA, builtAt, crawls: kept, skipped }),
     'series.json': write('series.json', {
-      schemaVersion: 4, builtAt,
+      schemaVersion: SNAPSHOT_SCHEMA, builtAt,
       fields: ['crawl', 'min', 'median', 'mean', 'max', 'count'],
       crawls: kept.map((c) => c.crawledAt),
       cards: Object.fromEntries([...cards].sort((a, b) => a[0] - b[0])),
     }),
-    'latest.json': write('latest.json', { schemaVersion: 4, builtAt, snapshot: newest }),
+    'latest.json': write('latest.json', { schemaVersion: SNAPSHOT_SCHEMA, builtAt, snapshot: newest }),
   };
 
   const kb = (n) => `${(n / 1024).toFixed(0)} KB`;

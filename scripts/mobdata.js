@@ -1,8 +1,4 @@
 'use strict';
-// ---------------------------------------------------------------------
-// COPY. The source lives in the code repository under src/mobdata.js.
-// Do not edit here - syncing overwrites every change.
-// ---------------------------------------------------------------------
 /**
  * Mob base data from rAthena's pre-renewal database.
  *
@@ -31,8 +27,8 @@ const ITEM_DBS = [
   'db/pre-re/item_db_usable.yml',
 ];
 
-// map,x,y[,xs,ys] \t monster|boss_monster \t display name \t mobid,count[,...]
-const SPAWN = /^([^,/\s]+),[\d,]*\s*\t+(?:boss_)?monster\t+([^\t]+)\t+(\d+)\s*,\s*(\d+)/i;
+// map,x,y[,xs,ys] \t monster|boss_monster \t display name \t mobid,count[,delay1[,delay2[,...]]]
+const SPAWN = /^([^,/\s]+),[\d,]*\s*\t+(?:boss_)?monster\t+([^\t]+)\t+(\d+)\s*,\s*(\d+)(?:\s*,\s*(\d+))?(?:\s*,\s*(\d+))?/i;
 
 async function fetchFile(remotePath, cacheDir, signal) {
   const local = path.join(cacheDir, remotePath.replace(/\//g, '_'));
@@ -130,9 +126,9 @@ async function loadMobs(cacheDir, byAegis, signal) {
 }
 
 /**
- * Spawn count per mob and map, summed across all spawn lines.
- * A mob often appears several times on the same map with different respawn
- * timers; for "how many walk around at once" the sum is what counts.
+ * Spawn count per mob and map, summed across all spawn lines, and the
+ * respawn time in milliseconds: delay1 plus half of delay2, averaged over
+ * the lines by their count.
  */
 async function loadSpawns(cacheDir, log, signal) {
   const index = await fetchFile(INDEX, cacheDir, signal);
@@ -154,14 +150,19 @@ async function loadSpawns(cacheDir, log, signal) {
       const m = SPAWN.exec(line);
       if (!m) continue;
       const key = `${m[3]}|${m[1].trim()}`;
-      totals.set(key, (totals.get(key) || 0) + Number.parseInt(m[4], 10));
+      const amount = Number.parseInt(m[4], 10);
+      const respawn = Number.parseInt(m[5] || '0', 10) + Number.parseInt(m[6] || '0', 10) / 2;
+      const held = totals.get(key) || { amount: 0, weighted: 0 };
+      totals.set(key, { amount: held.amount + amount, weighted: held.weighted + amount * respawn });
     }
     if (++done % 20 === 0) log(`    ${done}/${files.length} files`);
   }
 
-  return [...totals].map(([key, amount]) => {
+  return [...totals].map(([key, { amount, weighted }]) => {
     const [mobId, map] = key.split('|');
-    return { mobId: Number.parseInt(mobId, 10), map, amount };
+    return {
+      mobId: Number.parseInt(mobId, 10), map, amount, respawnMs: amount ? Math.round(weighted / amount) : 0,
+    };
   });
 }
 

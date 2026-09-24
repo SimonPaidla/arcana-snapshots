@@ -1,8 +1,4 @@
 'use strict';
-// ---------------------------------------------------------------------
-// COPY. The source lives in the code repository under src/carddesc.js.
-// Do not edit here - syncing overwrites every change.
-// ---------------------------------------------------------------------
 /**
  * Card descriptions derived from rAthena's script field.
  *

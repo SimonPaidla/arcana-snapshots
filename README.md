@@ -12,9 +12,9 @@ cards on the uaRO private server by what they are worth and how long they
 take to farm. The app itself is on
 [arcana-releases](https://github.com/SimonPaidla/arcana-releases).
 
-Several people crawl the market into this one repository instead of each
-keeping a history of their own, so a new installation opens on everyone's
-prices — with history — before it has crawled anything itself. Two kinds
+Several people crawl the market into this one repository with **Arcana
+Crawler**, a separate app, instead of each keeping a history of their own,
+so every Arcana installation opens on everyone's prices — with history. Two kinds
 of data live here, and they arrive in opposite directions:
 
 | | Where | Arrives |
@@ -47,19 +47,27 @@ speaks.
 
 ## Contributing a crawl
 
-Through the app, not by hand. With a token set on the app's **Data** view
-— a fine-grained token for this repository with write access to
-*contents* and *pull requests* — every crawl is offered here as a pull
-request that adds exactly one file:
+Through Arcana Crawler, not by hand. With a token set in the crawler — a
+fine-grained token for this repository with write access to *contents*
+and *pull requests* — every crawl is offered here as a pull request that
+adds exactly one file:
 
 ```
 snapshots/2026-09-22T05-55-43-537Z.json
 ```
 
+Each file is one crawl in schema 5: the crawl time and the counts on the
+first line, then every shop on a line of its own - merchant, shop name,
+map, x, y, and its offers as `[itemId, price, amount]`, ascending by card
+and price - with the shops in a fixed order. A shop that did not change
+between two crawls is the same line in both, so the history grows by
+little more than what changed. Files of an earlier schema stay in the
+archive and are not listed in `index.json`.
+
 `.github/workflows/pull-request.yml` judges it, the branch ruleset on
 `main` requires that check to pass, and auto-merge takes it in once it is
-green. The app runs the same validation before it offers anything, so a
-pull request that could only be refused is never opened.
+green. The crawler runs the same validation before it offers anything, so
+a pull request that could only be refused is never opened.
 
 What is refused: a modification, a deletion, a file in a subfolder, a file
 that is not a snapshot, a crawl dated in the future, a crawl missing a
@@ -141,18 +149,17 @@ so a bad day upstream can be repaired without waiting for the next run.
 
 ## Copied code
 
-Three files under `scripts/` are copies from the app's source repository,
-which is private, and carry a banner saying so:
+Two files under `scripts/` are generated from the app's repository by
+`npm run store-copies` there, and carry a banner saying so:
 
 | Copy | Source |
 |---|---|
-| `scripts/validate.js` | `src/validate.js` |
-| `scripts/mobdata.js` | `src/mobdata.js` |
-| `scripts/carddesc.js` | `src/carddesc.js` |
+| `scripts/validate.js` | `common/snapshot.ts` |
+| `scripts/validate-gamedata.js` | `common/gamedata.ts` |
 
-**Edit them there, not here** — the next sync overwrites whatever is
-changed in this copy. Everything else under `scripts/` belongs to this
-repository alone. The same goes for `assets/`: the logo is the app's, and
+**Edit them there, not here** — the next generation overwrites whatever
+is changed in this copy. Everything else under `scripts/` belongs to this
+repository alone, `mobdata.js` and `carddesc.js` among them. The same goes for `assets/`: the logo is the app's, and
 is copied again when it changes.
 
 ## Layout
@@ -177,4 +184,4 @@ meta.json             what this store is and which schema version it speaks
 |---|---|---|
 | `main` | the archive, the scripts, the workflows | contributors, through accepted pull requests |
 | `gamedata` | the four built tables and their manifest | the daily workflow |
-| `crawl/<time>` | one offered crawl each, the head of its pull request | the app |
+| `crawl/<time>` | one offered crawl each, the head of its pull request | Arcana Crawler |

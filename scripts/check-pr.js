@@ -18,7 +18,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { validateSnapshot, fingerprintOf } = require('./validate.js');
+const { validateSnapshot, knownOf, cardCountOf } = require('./validate.js');
 
 // How many earlier runs are read for the plausibility check. Reading all of
 // them would be a quarter of a gigabyte after a year.
@@ -78,17 +78,13 @@ function main() {
   // --- Comparison material from the target branch -----------------------
   const existing = new Set(existingPaths(base));
   const known = [];
+  // A file of another schema is no comparison material. The fingerprint
+  // refuses a run identical to one already here: it carries nothing new
+  // and skews every figure that counts crawls.
   for (const p of [...existing].sort().slice(-COMPARE_DEPTH)) {
     try {
-      const d = JSON.parse(git('show', `${base}:${p}`));
-      known.push({
-        crawledAt: d.crawledAt,
-        cardCount: Array.isArray(d.cards) ? d.cards.length : null,
-        offerCount: d.offerCount ?? null,
-        // So a run that is identical to one already here is refused: it
-        // carries nothing new and skews every figure that counts crawls.
-        fingerprint: fingerprintOf(d),
-      });
+      const entry = knownOf(JSON.parse(git('show', `${base}:${p}`)));
+      if (entry) known.push(entry);
     } catch { /* an unreadable older file must not stall the check */ }
   }
   known.sort((a, b) => String(a.crawledAt).localeCompare(String(b.crawledAt)));
@@ -117,13 +113,10 @@ function main() {
       console.log(`::warning file=${entry.file}::${w}`);
     }
     if (result.ok) {
-      console.log(`  ${entry.file}: ${data.cards.length} cards, `
+      console.log(`  ${entry.file}: ${cardCountOf(data)} cards, `
         + `${data.offerCount} offers - fine`);
       // A file that passed counts as comparison material for the next one.
-      known.push({
-        crawledAt: data.crawledAt, cardCount: data.cards.length,
-        offerCount: data.offerCount, fingerprint: fingerprintOf(data),
-      });
+      known.push(knownOf(data));
     }
   }
   return report(accepted.length);
