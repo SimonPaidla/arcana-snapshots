@@ -83,8 +83,11 @@ What is refused:
 - a file that is not a snapshot of schema 5, or whose name is not its crawl time;
 - a crawl more than 10 minutes in the future, or older than 30 days;
 - a crawl whose shops are identical to one already here;
-- a price above ten billion;
-- a crawl with fewer than 75 % of the cards of the crawls before it.
+- a price above ten billion.
+
+How many cards a crawl holds is not judged. During the weekly maintenance
+and the hours after it the market is small, and a crawl of an empty
+market has no shops and an offer count of 0; both are kept as they are.
 
 ## Why it is built the way it is
 
@@ -92,13 +95,11 @@ What is refused:
 and no contributor field in the file. A snapshot is judged on what it
 contains, not on who sent it, and `scripts/validate.js` is what judges
 it. It checks the schema version, a crawl time that is neither in the
-future nor too old, prices within bounds, shops in order, and a card
-count close to what is already known.
+future nor too old, prices within bounds, and shops in order.
 
-The card count may fall to 75 % of the median of the five crawls before,
-and below 90 % the check warns. The band can be this tight because the
-data allows it: across 27 crawls between 21 and 24 September 2026 the
-count ranged from 320 to 365 cards.
+The card count is not judged: on 29 and 30 September 2026 the server's
+maintenance left crawls of 12, 201 and 271 cards against the usual 370,
+and those hours are part of the market's record.
 
 **Pull requests only add files.** A price from yesterday is gone once it
 is gone, and keeping it is what this repository exists for. The one

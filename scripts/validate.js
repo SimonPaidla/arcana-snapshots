@@ -22,8 +22,6 @@ var __copyProps = (to, from, except, desc) => {
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 var snapshot_exports = {};
 __export(snapshot_exports, {
-  CARD_SHARE_ERROR: () => CARD_SHARE_ERROR,
-  CARD_SHARE_WARN: () => CARD_SHARE_WARN,
   CLOCK_SKEW_MS: () => CLOCK_SKEW_MS,
   LOWEST_N: () => LOWEST_N,
   MIN_GAP_MS: () => MIN_GAP_MS,
@@ -53,9 +51,6 @@ const LOWEST_N = 10;
 const PRICE_MAX = 1e10;
 const PRICE_WARN = 2e9;
 const CLOCK_SKEW_MS = 10 * 60 * 1e3;
-const COMPARE_DEPTH = 5;
-const CARD_SHARE_ERROR = 0.75;
-const CARD_SHARE_WARN = 0.9;
 const TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const SNAPSHOT_FILE_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\.json$/;
 const fileNameFor = (iso) => `${iso.replace(/[:.]/g, "-")}.json`;
@@ -160,9 +155,12 @@ function dedupeSnapshots(snapshots, { minGapMs = MIN_GAP_MS } = {}) {
   const seen = /* @__PURE__ */ new Set();
   const out = [];
   for (const snapshot of sorted) {
-    const print = fingerprintOf(snapshot);
-    if (seen.has(print)) continue;
-    seen.add(print);
+    const shops = snapshot.shops;
+    if (Array.isArray(shops) && shops.length) {
+      const print = fingerprintOf(snapshot);
+      if (seen.has(print)) continue;
+      seen.add(print);
+    }
     const last = out.at(-1);
     const gap = last ? Date.parse(snapshot.crawledAt) - Date.parse(last.crawledAt) : Infinity;
     if (last && Number.isFinite(gap) && gap < minGapMs) {
@@ -228,11 +226,10 @@ function validateSnapshot(data, context = {}) {
     const twin = known.find((k) => k.fingerprint && k.fingerprint === print);
     if (twin) reject(`Identical to the run of ${twin.crawledAt} - same shops, same offers.`);
   }
-  if (!Array.isArray(data.shops) || !data.shops.length) {
-    reject("Field shops is missing or empty.");
+  if (!Array.isArray(data.shops)) {
+    reject("Field shops is missing or not a list.");
     return { ok: false, errors, warnings };
   }
-  const cards = /* @__PURE__ */ new Set();
   let offersCounted = 0;
   let previousKey = null;
   for (const [i, shop] of data.shops.entries()) {
@@ -286,23 +283,12 @@ function validateSnapshot(data, context = {}) {
       if (price > PRICE_WARN) warnings.push(`Card ${itemId}: price ${price}.`);
       lastCard = itemId;
       lastPrice = price;
-      cards.add(itemId);
     }
   }
-  if (!isInt(data.offerCount) || data.offerCount <= 0) {
-    reject("Field offerCount is missing or not a positive integer.");
+  if (!isInt(data.offerCount) || data.offerCount < 0) {
+    reject("Field offerCount is missing or not an integer of 0 or more.");
   } else if (offersCounted !== data.offerCount) {
     reject(`offerCount = ${data.offerCount} but ${offersCounted} offers were counted.`);
-  }
-  const earlier = known.filter((k) => isInt(k.cardCount) && k.cardCount > 0).slice(-COMPARE_DEPTH);
-  if (earlier.length >= 3) {
-    const usual = median(earlier.map((k) => k.cardCount));
-    const share = cards.size / usual;
-    if (share < CARD_SHARE_ERROR) {
-      reject(`${cards.size} cards, usually around ${Math.round(usual)} (${Math.round(share * 100)} %). This looks like an aborted crawl.`);
-    } else if (share < CARD_SHARE_WARN) {
-      warnings.push(`${cards.size} cards against the usual ${Math.round(usual)}.`);
-    }
   }
   return { ok: errors.length === 0, errors, warnings };
 }
