@@ -8,7 +8,7 @@
 # Arcana snapshots
 
 The shared data store of **Arcana**, a desktop app that follows the card
-market of the uaRO private server and ranks pre-renewal cards by what they
+market of the uaRO private server and ranks its cards by what they
 are worth and how long they take to farm. The app itself is on
 [arcana-releases](https://github.com/SimonPaidla/arcana-releases).
 
@@ -21,7 +21,7 @@ opposite directions:
 | | Where | Arrives |
 |---|---|---|
 | **Price snapshots** | `snapshots/` on `main` | from contributors, one pull request per crawl |
-| **Game data** | the `gamedata` branch | built once a day from [rAthena](https://github.com/rathena/rathena)'s pre-renewal database |
+| **Game data** | the `gamedata` branch | built once a day from [rAthena](https://github.com/rathena/rathena)'s pre-renewal database, and its renewal database for the cards only that knows |
 
 **The archive started afresh on 24 September 2026** with snapshot schema 5.
 The crawls of earlier schemas were removed. Until the first crawl of
@@ -43,8 +43,8 @@ The game data is committed on its own branch and read from there:
 
 | File | What it is |
 |---|---|
-| [`cards.json`](https://raw.githubusercontent.com/SimonPaidla/arcana-snapshots/gamedata/cards.json) | the pre-renewal cards, with their effects as text |
-| [`mobs.json`](https://raw.githubusercontent.com/SimonPaidla/arcana-snapshots/gamedata/mobs.json) | level, HP, element, race, size, and whether a mob is an MVP |
+| [`cards.json`](https://raw.githubusercontent.com/SimonPaidla/arcana-snapshots/gamedata/cards.json) | the cards, with their effects as text - the pre-renewal ones, and those only the renewal database knows with `renewal: true` |
+| [`mobs.json`](https://raw.githubusercontent.com/SimonPaidla/arcana-snapshots/gamedata/mobs.json) | level, HP, element, race, size, whether a mob is an MVP, and `renewal: true` for a renewal mob that drops a renewal card |
 | [`drops.json`](https://raw.githubusercontent.com/SimonPaidla/arcana-snapshots/gamedata/drops.json) | which mob drops which card, at rAthena's base rate in percent |
 | [`spawns.json`](https://raw.githubusercontent.com/SimonPaidla/arcana-snapshots/gamedata/spawns.json) | how many of a mob stand on a map, and its respawn time in milliseconds |
 | [`meta.json`](https://raw.githubusercontent.com/SimonPaidla/arcana-snapshots/gamedata/meta.json) | when the game data was built, from which rAthena commit, and how many of each |
