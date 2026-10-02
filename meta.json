@@ -1,14 +1,14 @@
 {
-  "builtAt": "2026-09-24T17:17:47.988Z",
-  "tookMs": 11248,
+  "builtAt": "2026-10-02T08:30:22.384Z",
+  "tookMs": 37852,
   "rathena": {
     "sha": "e985006171d2eb320ee512a653f4c83aea3d81b6",
     "committedAt": "2026-08-21T17:10:06Z"
   },
   "counts": {
-    "cards": 538,
-    "mobs": 1004,
-    "drops": 5019,
-    "spawns": 1907
+    "cards": 5593,
+    "mobs": 1529,
+    "drops": 5581,
+    "spawns": 2115
   }
 }
