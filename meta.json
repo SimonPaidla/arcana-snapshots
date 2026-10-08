@@ -1,14 +1,17 @@
 {
-  "builtAt": "2026-10-02T08:30:22.384Z",
-  "tookMs": 37852,
+  "builtAt": "2026-10-08T13:23:03.095Z",
+  "tookMs": 44276,
   "rathena": {
-    "sha": "e985006171d2eb320ee512a653f4c83aea3d81b6",
-    "committedAt": "2026-08-21T17:10:06Z"
+    "sha": "d4b8e7b8f16061cc2496d377ac8f777ce72a4f39",
+    "committedAt": "2026-10-06T09:56:48Z"
   },
   "counts": {
     "cards": 5593,
+    "items": 29356,
     "mobs": 1529,
     "drops": 5581,
-    "spawns": 2115
+    "spawns": 2115,
+    "recipes": 258,
+    "pets": 57
   }
 }
