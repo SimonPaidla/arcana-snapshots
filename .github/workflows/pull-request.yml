@@ -1,28 +1,21 @@
-# Judges a contribution before it can be merged.
+# Judges a pull request into main; `validate` is the check the ruleset on
+# main requires.
 #
-# This is the check the branch ruleset on main requires. Whatever passes
-# here lands in the shared archive, and the archive is the one thing in
-# this project that cannot be obtained again - a price from yesterday is
-# gone once it is gone. scripts/check-pr.js is therefore written to refuse
-# anything it was not explicitly built to accept: new files directly under
-# snapshots/, named after their timestamp, and nothing else.
-#
-# That refusal is also what makes it safe for the game-data workflow to
-# write to main directly. The only way to change what an action does is to
-# change a file under .github/, and a pull request that touches anything
-# outside snapshots/*.json is rejected here.
+# Runs on pull_request_target: the workflow and scripts/ are main's, the
+# pull request's commits are fetched as data, and nothing of the pull
+# request is executed. scripts/check-pr.js reads its files with git and
+# accepts new files under snapshots/ and items/ only.
 name: Pull request
 
 on:
-  pull_request:
+  pull_request_target:
     branches: [main]
+    types: [opened, synchronize, reopened]
 
-# Read-only. This job judges; it does not change anything.
 permissions:
   contents: read
 
 concurrency:
-  # A second push to the same pull request makes the first run pointless.
   group: pr-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
@@ -32,12 +25,18 @@ jobs:
     timeout-minutes: 10
 
     steps:
+      # main, with its history: the archive the contribution is compared to.
       - uses: actions/checkout@v4
         with:
-          # The check compares the contribution against the whole archive,
-          # so it needs the history rather than a shallow copy.
+          ref: ${{ github.event.pull_request.base.ref }}
           fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      # The pull request's commits, without a checkout.
+      - name: Fetch the pull request
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: git fetch --no-tags origin "+refs/pull/${PR_NUMBER}/head:refs/remotes/pull/head"
 
       - uses: actions/setup-node@v4
         with:
@@ -45,6 +44,6 @@ jobs:
 
       - name: Check the contribution
         env:
-          BASE_REF: origin/${{ github.event.pull_request.base.ref }}
+          BASE_REF: HEAD
           HEAD_REF: ${{ github.event.pull_request.head.sha }}
         run: node scripts/check-pr.js

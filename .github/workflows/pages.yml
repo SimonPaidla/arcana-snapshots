@@ -1,27 +1,15 @@
-# Publishes what the app actually fetches.
-#
-# Archive format and serving format are not the same thing. The archive is
-# one file per crawl, immutable; a fresh installation does not want to
-# fetch a thousand of those. scripts/build-index.js turns them into three
-# files - what exists, all metrics without individual offers, and the
-# newest run in full - and this workflow puts those on GitHub Pages.
-#
-# Nothing here is committed. All three files are derived and can be
-# rebuilt from the archive at any time, so keeping them in the history
-# would only add noise to every merge.
+# Builds index.json, series.json and latest.json from the archive
+# (scripts/build-index.js) and publishes them on GitHub Pages. Nothing is
+# committed.
 name: Pages
 
 on:
   push:
     branches: [main]
-    # Game data is served straight from the repository and is not part of
-    # the index, so a game-data commit has no reason to rebuild this.
-    paths: ['snapshots/**']
+    paths: ['snapshots/**', 'items/**']
   workflow_dispatch:
   schedule:
-    # A safety net, not the main path. If a merge ever fails to start this
-    # workflow, the published index is at most a few hours behind rather
-    # than stale until somebody notices.
+    # Rebuilds every six hours besides the pushes.
     - cron: '43 */6 * * *'
 
 permissions:
@@ -29,8 +17,7 @@ permissions:
   pages: write
   id-token: write
 
-# One deployment at a time, and never cancel one halfway - a cancelled
-# deploy would leave the published site on an older build.
+# One deployment at a time, none cancelled.
 concurrency:
   group: pages
   cancel-in-progress: false

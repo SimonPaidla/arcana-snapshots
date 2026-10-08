@@ -1,39 +1,25 @@
 'use strict';
 /**
- * Builds the files the app actually fetches out of the archive.
+ * Builds the files GitHub Pages serves from the archive into build/:
  *
- * Archive format and serving format are not the same thing. The archive is
- * one file per crawl, immutable; someone installing the app fresh does not
- * want to fetch a thousand of those. What is produced:
- *
- *   index.json   What exists. The app compares it against its own copy and
- *                fetches only the gap.
- *   series.json  All metrics of all crawls, without individual offers.
- *                Covers history, movers and the usual price level in full
- *                and is about a sixth of the size.
- *   latest.json  The newest run, with individual offers. Outlier
- *                detection needs those.
- *
- * The individual files stay reachable through the repository itself; only
- * someone needing offers from the past fetches them one by one.
- *
- * Output goes to build/ - the Pages step uploads from there, and none of
- * it is committed. What has to be protected is the archive: a snapshot
- * reaches main only through a pull request that scripts/check-pr.js has
- * accepted, and that check refuses every path outside snapshots/*.json -
- * including the workflow files themselves. Derived data needs none of
- * that protection, because it can be rebuilt from the archive at any
- * time; game data is written to main by an action for the same reason.
+ *   index.json   every counted crawl of the cards (path, time, card and
+ *                offer count), the crawls left out with the reason, and
+ *                under `items` every part of items the validator passes
+ *                (path, time, item and offer count, bytes, schema)
+ *   series.json  every card's min, median, mean, max and count per counted crawl
+ *   latest.json  the newest counted crawl as stored
  */
 
 const fs = require('fs');
 const path = require('path');
 const {
   byCard, cardCountOf, dedupeSnapshots, isSnapshotShape, MIN_GAP_MS, SNAPSHOT_SCHEMA,
+  isItemPath, itemCountOf, validateItemSnapshot, ITEM_SNAPSHOT_SCHEMA,
 } = require('./validate.js');
 
 const ROOT = path.join(__dirname, '..');
 const SOURCE = path.join(ROOT, 'snapshots');
+const ITEMS = path.join(ROOT, 'items');
 const TARGET = path.join(ROOT, 'build');
 
 /**
@@ -52,6 +38,41 @@ function allFiles() {
   return out.sort();
 }
 
+/**
+ * Every part of items validateItemSnapshot() passes under its path, by
+ * crawl time: `items/type-7/…`, `items/ids/…`. Each is listed, none
+ * counted out as the crawls are.
+ */
+function allParts() {
+  const out = [];
+  let skipped = 0;
+  let folders;
+  try { folders = fs.readdirSync(ITEMS, { withFileTypes: true }); } catch { return { parts: out, skipped }; }
+  for (const folder of folders.filter((f) => f.isDirectory())) {
+    for (const entry of fs.readdirSync(path.join(ITEMS, folder.name), { withFileTypes: true })) {
+      const rel = `items/${folder.name}/${entry.name}`;
+      if (!entry.isFile() || !isItemPath(rel)) continue;
+      const full = path.join(ITEMS, folder.name, entry.name);
+      let data;
+      try { data = JSON.parse(fs.readFileSync(full, 'utf-8')); } catch {
+        console.log(`  skipped (unreadable): ${rel}`);
+        continue;
+      }
+      if (!validateItemSnapshot(data, { path: rel, now: Number.POSITIVE_INFINITY }).ok) {
+        skipped += 1;
+        continue;
+      }
+      out.push({
+        path: rel, crawledAt: data.crawledAt,
+        itemCount: itemCountOf(data), offerCount: data.offerCount,
+        bytes: fs.statSync(full).size, schemaVersion: data.schemaVersion,
+      });
+    }
+  }
+  out.sort((a, b) => a.crawledAt.localeCompare(b.crawledAt) || a.path.localeCompare(b.path));
+  return { parts: out, skipped };
+}
+
 function main() {
   const files = allFiles();
   const crawls = [];
@@ -66,8 +87,6 @@ function main() {
       console.log(`  skipped (unreadable): ${rel}`);
       continue;
     }
-    // Only snapshots of the current schema are listed: a reader of this
-    // index reads that one schema and no other.
     if (!isSnapshotShape(data)) {
       otherSchema += 1;
       continue;
@@ -81,22 +100,12 @@ function main() {
       schemaVersion: data.schemaVersion ?? null,
     });
 
-    // `newest` is picked from the counted runs further down, not here -
-    // an uncounted twin must not become what everybody downloads.
   }
 
   crawls.sort((a, b) => a.crawledAt.localeCompare(b.crawledAt));
   if (otherSchema) console.log(`  ${otherSchema} file(s) not of schema ${SNAPSHOT_SCHEMA}, not listed`);
 
-  // --- One market moment, one observation -------------------------------
-  // The archive keeps every file; what is published counts each look at
-  // the market once. A run filed twice gives that moment several votes,
-  // and the figures that count crawls follow it: measured on the real
-  // archive, three identical runs moved the usual price on 222 of 370
-  // cards, worst case from 299,999 to 999,999.
-  //
-  // The same rule the app applies when reading, from the same module, so
-  // the two cannot drift apart.
+  // --- The counted crawls: dedupeSnapshots(), as Arcana reads them --------
   const loaded = crawls.map((c) => ({
     ...JSON.parse(fs.readFileSync(path.join(ROOT, ...c.path.split('/')), 'utf-8')),
     __entry: c,
@@ -118,19 +127,18 @@ function main() {
   }
   if (newest) delete newest.__entry;
 
-  // The series only now, in sorted order - the index in every point refers
-  // to kept[i].
+  // Each point's first field is its crawl's index in `kept`.
   kept.forEach((crawl, i) => {
     const data = JSON.parse(fs.readFileSync(path.join(ROOT, ...crawl.path.split('/')), 'utf-8'));
     for (const card of byCard(data).cards) {
       if (!Number.isInteger(card.itemId)) continue;
       if (!cards.has(card.itemId)) cards.set(card.itemId, []);
-      // Compact as an array, not an object: across hundreds of cards and
-      // thousands of crawls the field names would be most of the file.
-      // Order: crawl, min, median, mean, max, count.
       cards.get(card.itemId).push([i, card.min, card.median, card.mean, card.max, card.count]);
     }
   });
+
+  const items = allParts();
+  if (items.skipped) console.log(`  ${items.skipped} part(s) refused by the validator of item schema ${ITEM_SNAPSHOT_SCHEMA}, not listed`);
 
   fs.mkdirSync(TARGET, { recursive: true });
   const builtAt = new Date().toISOString();
@@ -141,10 +149,10 @@ function main() {
   };
 
   const sizes = {
-    // Only the counted runs: the app fetches what this lists, and a run
-    // that changes no figure is not worth a download. What was left out
-    // is named rather than silently dropped.
-    'index.json': write('index.json', { schemaVersion: SNAPSHOT_SCHEMA, builtAt, crawls: kept, skipped }),
+    // The counted crawls, the crawls left out with the reason, every part.
+    'index.json': write('index.json', {
+      schemaVersion: SNAPSHOT_SCHEMA, itemSchemaVersion: ITEM_SNAPSHOT_SCHEMA, builtAt, crawls: kept, skipped, items: items.parts,
+    }),
     'series.json': write('series.json', {
       schemaVersion: SNAPSHOT_SCHEMA, builtAt,
       fields: ['crawl', 'min', 'median', 'mean', 'max', 'count'],
@@ -155,7 +163,7 @@ function main() {
   };
 
   const kb = (n) => `${(n / 1024).toFixed(0)} KB`;
-  console.log(`${kept.length} crawls counted of ${crawls.length}, ${cards.size} cards`);
+  console.log(`${kept.length} crawls counted of ${crawls.length}, ${cards.size} cards, ${items.parts.length} parts of items`);
   for (const [name, size] of Object.entries(sizes)) console.log(`  ${name}: ${kb(size)}`);
   if (!crawls.length) {
     console.log('No snapshot in the archive yet - the files stay empty.');

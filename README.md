@@ -7,195 +7,181 @@
 
 # Arcana snapshots
 
-The shared data store of **Arcana**, a desktop app that follows the card
-market of the uaRO private server and ranks its cards by what they
-are worth and how long they take to farm. The app itself is on
+The shared data store of **Arcana**, a desktop app that follows the
+vendor market of the uaRO private server and ranks its cards by value and
+farmability. The app is on
 [arcana-releases](https://github.com/SimonPaidla/arcana-releases).
 
-Several people crawl the market into this one repository with **Arcana
-Crawler**, a separate app, every full hour, instead of each keeping a
-history of their own. Every Arcana installation then opens on everyone's
-prices, with history. Two kinds of data live here, and they arrive in
-opposite directions:
+Contributors crawl the market into this repository with **Arcana
+Crawler** every full hour; every Arcana installation reads it.
 
 | | Where | Arrives |
 |---|---|---|
-| **Price snapshots** | `snapshots/` on `main` | from contributors, one pull request per crawl |
-| **Game data** | the `gamedata` branch | built once a day from [rAthena](https://github.com/rathena/rathena)'s pre-renewal database, and its renewal database for the cards only that knows |
+| **Crawls of the cards** | `snapshots/` on `main` | one pull request per crawl |
+| **Parts of items** | `items/` on `main` | one pull request per part: an item type other than cards, or a list of item IDs |
+| **Game data** | the `gamedata` branch | built daily from [rAthena](https://github.com/rathena/rathena)'s pre-renewal database, and its renewal database for the cards and items only that knows |
 
-**The archive started afresh on 24 September 2026** with snapshot schema 5.
-The crawls of earlier schemas were removed. Until the first crawl of
-schema 5 is merged, the index is empty.
+The archive starts on 24 September 2026 with snapshot schema 5.
 
-## Using the data
+## Reading the data
 
-The archive is not the serving format: one file per crawl is right for
-keeping data and wrong for a reader who wants the current state. GitHub
-Pages publishes these files, rebuilt from the archive:
+GitHub Pages serves these files, rebuilt from the archive by
+`scripts/build-index.js`:
 
-| File | What it is |
+| File | Contents |
 |---|---|
-| [`index.json`](https://simonpaidla.github.io/arcana-snapshots/index.json) | every counted crawl with its path, time, card and offer count, and the runs left out and why; Arcana compares it with its own cache and fetches only the gap |
-| [`series.json`](https://simonpaidla.github.io/arcana-snapshots/series.json) | every card's metrics in every counted crawl - min, median, mean, max, count - without the individual offers |
-| [`latest.json`](https://simonpaidla.github.io/arcana-snapshots/latest.json) | the newest counted crawl in full, as it is stored |
+| [`index.json`](https://simonpaidla.github.io/arcana-snapshots/index.json) | every counted crawl with its path, time, card and offer count, and the crawls left out with the reason; under `items`, every part the validator passes, with its path, time, item and offer count |
+| [`series.json`](https://simonpaidla.github.io/arcana-snapshots/series.json) | every card's min, median, mean, max and count in every counted crawl |
+| [`latest.json`](https://simonpaidla.github.io/arcana-snapshots/latest.json) | the newest counted crawl as stored |
 
-The game data is committed on its own branch and read from there:
+The game data is read from the `gamedata` branch:
 
-| File | What it is |
+| File | Contents |
 |---|---|
-| [`cards.json`](https://raw.githubusercontent.com/SimonPaidla/arcana-snapshots/gamedata/cards.json) | the cards, with their effects as text - the pre-renewal ones, and those only the renewal database knows with `renewal: true` |
-| [`mobs.json`](https://raw.githubusercontent.com/SimonPaidla/arcana-snapshots/gamedata/mobs.json) | level, HP, element, race, size, whether a mob is an MVP, and `renewal: true` for a renewal mob that drops a renewal card |
-| [`drops.json`](https://raw.githubusercontent.com/SimonPaidla/arcana-snapshots/gamedata/drops.json) | which mob drops which card, at rAthena's base rate in percent |
+| [`cards.json`](https://raw.githubusercontent.com/SimonPaidla/arcana-snapshots/gamedata/cards.json) | the cards with their effects as text; `renewal: true` for a card only the renewal database knows |
+| [`items.json`](https://raw.githubusercontent.com/SimonPaidla/arcana-snapshots/gamedata/items.json) | every item of the vendor list's types: name, type, subtype, slots, NPC buy and sell price, weight; attack, defense, weapon level and the base level to equip it, or null; its equip locations as rAthena names them (`Head_Top`, `Armor`, `Right_Hand` …), whether it can be refined; its script as text where all of it reads as text (`effect`), else null; the lowest price an NPC shop of the pre-renewal merchants asks for it (`shop`), else null; `renewal: true` for an item only the renewal database knows |
+| [`recipes.json`](https://raw.githubusercontent.com/SimonPaidla/arcana-snapshots/gamedata/recipes.json) | what the pre-renewal produce database makes: the item, made one at a time, and the materials it uses up - a guide or cookbook that only has to be carried is not listed |
+| [`pets.json`](https://raw.githubusercontent.com/SimonPaidla/arcana-snapshots/gamedata/pets.json) | the pets of the pre-renewal pet database: mob, egg, the item that tames it and its food, or null; the bonus it gives at loyal intimacy as text, else null |
+| [`mobs.json`](https://raw.githubusercontent.com/SimonPaidla/arcana-snapshots/gamedata/mobs.json) | level, HP, element, race, size, MVP; `renewal: true` for a renewal mob that drops a renewal card |
+| [`drops.json`](https://raw.githubusercontent.com/SimonPaidla/arcana-snapshots/gamedata/drops.json) | which mob drops which item - every drop of the pre-renewal mobs, and the renewal cards' drops of the renewal mobs - at rAthena's base rate in percent, `source: "rathena"` |
 | [`spawns.json`](https://raw.githubusercontent.com/SimonPaidla/arcana-snapshots/gamedata/spawns.json) | how many of a mob stand on a map, and its respawn time in milliseconds |
-| [`meta.json`](https://raw.githubusercontent.com/SimonPaidla/arcana-snapshots/gamedata/meta.json) | when the game data was built, from which rAthena commit, and how many of each |
+| [`meta.json`](https://raw.githubusercontent.com/SimonPaidla/arcana-snapshots/gamedata/meta.json) | build time, rAthena commit, and the count of each list |
 
-Arcana reads `index.json`, the snapshot files it lacks, and the game data;
-`series.json` and `latest.json` are there for anyone else. Pages serves
-what is derived from the archive; the repository serves what is kept.
-`meta.json` on `main` says what this store is and which snapshot schema it
-speaks.
+Arcana reads `index.json`, the crawls and parts it lacks, and the game
+data. `meta.json` on `main` names the store and its schemas:
+`schemaVersion` for the crawls of the cards, `itemSchemaVersion` for the
+parts of items.
 
-## Contributing a crawl
+## Contributing
 
-Through Arcana Crawler, not by hand. With a token set in the crawler - a
-fine-grained token for this repository with write access to *contents*
-and *pull requests* - every crawl is offered here as a pull request that
-adds exactly one file, named after the full UTC hour it was taken for:
+Through Arcana Crawler, with a fine-grained token for this repository
+that has write access to *contents* and *pull requests*. Each crawl and
+each part is a pull request that adds one file, named after the full UTC
+hour it was taken for:
 
 ```
-snapshots/2026-09-24T17-00-00-000Z.json
+snapshots/2026-10-08T17-00-00-000Z.json               a crawl of the cards
+items/type-7/2026-10-08T17-00-00-000Z.json            every offer of one item type (here Pet Egg)
+items/ids/2026-10-08T17-00-00-000Z-1a2b3c4d.json      every offer of a list of item IDs
 ```
 
-Each file is one crawl in schema 5. The crawl time and the counts are on
-the first line, then every shop on a line of its own: merchant, shop name,
+**A crawl** is snapshot schema 5: the crawl time and the counts on the
+first line, then every shop on a line of its own - merchant, shop name,
 map, x, y, and its offers as `[itemId, price, amount]`, ascending by card
-and price. The shops come in a fixed order. A shop that did not change
-between two crawls is the same line in both, so a crawl is about a third
-of the size of the earlier per-card format.
+and price. Shops come in a fixed order, so an unchanged shop is the same
+line in two crawls. Snapshots carry no contributor.
 
-`.github/workflows/pull-request.yml` judges the pull request, the branch
-ruleset on `main` requires that check to pass, and auto-merge takes it in
-once it is green. The crawler runs the same validation before it offers
-anything, so it never opens a pull request that could only be refused.
+**A part** is item schema 1, with its scope (`{ "type": 7 }` or
+`{ "items": [501, 607] }`) and the item names the control panel showed
+(`names`) on the first line, and its shops as in a crawl. An offer is
+`[itemId, price, amount]`, or `[itemId, price, amount, refine, cards]`
+for a piece with a refine or socketed cards; equal offers in one shop are
+separate pieces. `type-<id>` is the vendor list's type: 0 Healing,
+2 Usable, 3 Etc, 4 Weapon, 5 Armor, 7 Pet Egg, 8 Pet Armor, 10 Ammo,
+11 Delay Consume, 18 Cash Shop Reward - never 6 (Card). A
+list's file name ends in the first eight hex digits of the SHA-256 of its
+IDs, ascending, in decimal, joined by `,`.
 
-What is refused:
-- a modified or deleted file, a file in a subfolder, and any path outside `snapshots/*.json`, `.github/` included;
-- a file that is not a snapshot of schema 5, or whose name is not its crawl time;
-- a crawl more than 10 minutes in the future, or older than 30 days;
-- a crawl whose shops are identical to one already here;
-- a price above ten billion.
+The crawler runs the store's validation before it offers a file.
 
-How many cards a crawl holds is not judged. During the weekly maintenance
-and the hours after it the market is small, and a crawl of an empty
-market has no shops and an offer count of 0; both are kept as they are.
+## The check
 
-## Why it is built the way it is
+`.github/workflows/pull-request.yml` judges every pull request into
+`main`; its job `validate` is the check the ruleset on `main` requires,
+and auto-merge merges a pull request once it passes.
 
-**Snapshots are flat and anonymous.** There is no folder per contributor
-and no contributor field in the file. A snapshot is judged on what it
-contains, not on who sent it, and `scripts/validate.js` is what judges
-it. It checks the schema version, a crawl time that is neither in the
-future nor too old, prices within bounds, and shops in order.
+- It runs on `pull_request_target`: the workflow and `scripts/` are
+  `main`'s, the pull request's commits are fetched as data, and nothing
+  of the pull request is executed. `scripts/check-pr.js` reads each file
+  with `git show`.
+- The token is read-only (`contents: read`) and not kept in the checkout.
 
-The card count is not judged: on 29 and 30 September 2026 the server's
-maintenance left crawls of 12, 201 and 271 cards against the usual 370,
-and those hours are part of the market's record.
+Refused:
+- a modified, deleted or renamed file, and any path other than `snapshots/<time>.json`, `items/type-<id>/<time>.json` and `items/ids/<time>-<list>.json` - `.github/` and `scripts/` included;
+- a symbolic link, an executable file, a submodule, and a file above 16 MB;
+- under `snapshots/`, a file that is not snapshot schema 5 or whose name is not its crawl time;
+- under `items/`, a file that is not item schema 1, a part of cards or of a type outside the vendor list, or one whose path is not the one its scope and crawl time name;
+- a field outside the format - a snapshot carries nothing but its own fields;
+- a crawl time that is not a full UTC hour, more than 10 minutes in the future or older than 30 days;
+- a crawl whose shops are identical to one of the ten newest here;
+- a price above ten billion; in a part, a refine above 20, more than four cards, an item outside its list, or names that are not the offered items' ids in decimal with well-formed text;
+- a file the validator throws on.
 
-**Pull requests only add files.** A price from yesterday is gone once it
-is gone, and keeping it is what this repository exists for. The one
-exception was the deliberate restart of the archive with schema 5.
+A part with the same shops as one an hour before is taken: a quiet
+market observed again.
 
-**One market moment counts once.** Statistics count crawls. That is right
-while every crawl is an independent look at the market, and wrong the
-moment the same look is filed twice. Measured on the archive of September
-2026, three identical runs added moved the usual price on 222 of 370
-cards, in the worst case from 299,999 to 999,999.
+The size of a crawl is not judged: a crawl of an empty market, during the
+weekly maintenance, has no shops and an offer count of 0.
 
-So identical shop data is one observation, whatever time is on it. Runs
-closer together than **15 minutes** are one moment, and of them the
-fullest counts. The rule lives in `validate.js`, so the app and this
-repository apply the same one. `index.json` names what it left out and
-why, and the archive keeps every file.
+## Counting
 
-**Game data is built here, once.** About seventy files of rAthena are
-fetched and parsed into four lists. The result is the same for everyone,
-so building it once a day here is cheaper than in every copy of the app.
-The spawn lines also give each map's respawn time, so a boss that stands
-once an hour is not counted as if it were always there.
+`scripts/validate.js` decides which crawls count, for the index and for
+Arcana alike: crawls with identical shops are one observation whatever
+their time, and of crawls less than **15 minutes** apart the fullest
+counts. `index.json` lists the crawls left out with the reason; the
+archive keeps every file.
 
-`scripts/validate-gamedata.js` has to accept a build before it is
-committed. It checks floors, the size against the last published build,
-and the **joins**: every list can be the right length while the ids that
-tie them together have stopped matching.
+## Game data
 
-**Game data sits on a branch of its own.** A workflow cannot push to a
-branch a ruleset protects. GitHub does not let the Actions app bypass a
-ruleset, since any collaborator could otherwise write a workflow that
-pushes wherever they liked. The alternatives are a deploy key or a token
-kept as a secret, and this project keeps no credentials. A branch costs
-none of that and still has a history to diff and roll back.
+`.github/workflows/gamedata.yml` builds the lists from about 210 files
+of rAthena - its databases, every spawn file, and the merchants' files
+of the pre-renewal NPC lists for the shop prices - (`scripts/mobdata.js`,
+`scripts/carddesc.js`, `scripts/build-gamedata.js`) in a job with a
+read-only token and `yaml` at a fixed version; a second job, the only
+one that may write, commits them to the `gamedata` branch with
+`scripts/publish-gamedata.sh`. `scripts/validate-gamedata.js` has to
+accept a build first: every list above its floor and at 90 % or more of the
+published build; every entry of its list's form - ids, names as text,
+drop rates above 0 up to 100 %, amounts of 0 or more, an item's figures,
+locations, effect and shop price where given -; every drop, spawn and
+pet names a known mob; every card, every recipe's item and materials and
+every pet's egg is an item, every item has a type of the vendor list;
+enough cards drop, mobs spawn, card effects read as text and items have
+an NPC shop price; drop rates from `rathena` only.
+Arcana multiplies the base rates by the server's factor, one of its
+settings.
 
-**Drop rates are rAthena's.** Every rate published here carries
-`source: "rathena"`, and the validator refuses a build with any other
-source in it. The app multiplies them by the server's factor, one of its
-settings: ×5 on uaRO, where normal cards drop at 0.05 %. MVP cards drop
-at ×1 there.
+No ruleset covers the `gamedata` branch: a token with write access to
+*contents* - a contributor's among them - can push to it. Arcana takes a
+build there only when `checkGameData()` accepts it. A ruleset on
+`gamedata` that lets only the workflow push would close the branch.
 
-## Changing anything in here
+## Maintenance
 
-The ruleset on `main` has an **empty bypass list**, and it has to stay
-empty. Every contributor token is issued from the same account that owns
-this repository, so a bypass for "repository admin" would be a bypass for
-every token as well, and the rule would protect nothing.
-
-Nobody pushes to `main` directly, not even the owner, and `check-pr.js`
-refuses any pull request touching a path outside `snapshots/*.json`.
-Maintenance therefore takes three steps:
+The ruleset on `main` has an **empty bypass list**. A push to `main`
+therefore takes three steps:
 
 1. *Settings → Rules →* the ruleset *→ Enforcement status:* `Disabled`
 2. `git push`
 3. *Enforcement status:* `Active`
 
-**Step three is not optional.** Between steps two and three the archive
-has no protection at all. Do the push and put the rule back in the same
-sitting, not "later".
+**Step three follows step two in the same sitting**: in between, `main`
+has no protection.
 
-This is a deliberate trade. Letting `check-pr.js` accept pull requests
-that touch no snapshot would have made maintenance ordinary, at the price
-of a token being able to rewrite the check itself. The archive is what
-matters, so the inconvenience lands on maintenance.
-
-The game-data workflow can also be started by hand from the Actions tab,
-so a bad day upstream can be repaired without waiting for the next run.
+The game data workflow also starts by hand from the Actions tab.
 
 ## Copied code
 
-Two files under `scripts/` are generated from the app's repository by
-`npm run store-copies` there, and carry a banner saying so:
+Two files under `scripts/` are generated by `npm run store-copies` in the
+app's repository and carry a banner saying so; they are edited there:
 
 | Copy | Source |
 |---|---|
 | `scripts/validate.js` | `common/snapshot.ts` |
 | `scripts/validate-gamedata.js` | `common/gamedata.ts` |
 
-**Edit them there, not here**: the next generation overwrites whatever
-is changed in the copy. Everything else under `scripts/` belongs to this
-repository alone, `mobdata.js` and `carddesc.js` among them. `assets/`
-holds the app's logo, copied again when it changes.
-
-A change to the snapshot format changes both repositories in one sitting.
-This store's side reaches `main` first, and the crawler that writes the
-new schema is released right after. In between, each refuses what the
-other writes.
+A change to a schema lands here first; the crawler that writes it is
+released right after. `assets/` holds the app's logo.
 
 ## Layout
 
 ```
-snapshots/            one file per crawl, added and never changed
+snapshots/            one file per crawl of the cards, added and never changed
+items/                one file per part of items - type-<id>/, ids/ - added and never changed
 scripts/              validation, the pull request check, the index and the game data builds
-.github/workflows/    the three jobs below
-assets/               the logo, for this page
-meta.json             what this store is and which schema version it speaks
+.github/workflows/    the three workflows below
+assets/               the logo
+meta.json             the store's name and schema versions
 build/                the index build's output; not committed
 gamedata/             the game data build's output; published to the gamedata branch, not committed
 .cache-rathena/       rAthena's files, fetched by the game data build; not committed
@@ -203,12 +189,13 @@ gamedata/             the game data build's output; published to the gamedata br
 
 | Workflow | When | What it does |
 |---|---|---|
-| `pull-request.yml` | every pull request | judges a contribution; the check the ruleset requires |
-| `pages.yml` | after a merge into `snapshots/`, every six hours, on demand | builds the index and publishes it |
-| `gamedata.yml` | 02:17 UTC daily, on demand | rebuilds the game data and publishes the `gamedata` branch |
+| `pull-request.yml` | every pull request into `main` | judges a contribution; `validate` is the required check |
+| `pages.yml` | a push to `snapshots/` or `items/` on `main`, every six hours, on demand | builds the index and publishes it on Pages |
+| `gamedata.yml` | 02:17 UTC daily, on demand | builds the game data and publishes the `gamedata` branch |
 
 | Branch | What is on it | Who writes it |
 |---|---|---|
 | `main` | the archive, the scripts, the workflows | contributors, through accepted pull requests |
-| `gamedata` | the four built lists and their manifest | the daily workflow |
-| `crawl/<time>` | one offered crawl each, the head of its pull request | Arcana Crawler |
+| `gamedata` | the seven built lists and their `meta.json` | the game data workflow |
+| `crawl/<time>` | one offered crawl, the head of its pull request | Arcana Crawler |
+| `crawl/items/<folder>/<name>` | one offered part, the head of its pull request | Arcana Crawler |

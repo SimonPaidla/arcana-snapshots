@@ -1,15 +1,10 @@
 'use strict';
 /**
- * Builds the game data from rAthena, once, for everyone.
- *
- * Every installation used to fetch and parse about seventy files from
- * rAthena itself. The result is the same for all of them, so it is built
- * here instead and the app downloads four files.
- *
- * Writes gamedata/{cards,mobs,drops,spawns}.json and gamedata/meta.json.
- * Drop rates carry `source: 'rathena'` throughout - rates an installation
- * measured itself belong to that installation and are merged there, never
- * here.
+ * Builds the game data from rAthena into gamedata/: cards, items, mobs,
+ * drops, spawns, recipes and pets as JSON lists, and meta.json with the
+ * build time, the rAthena commit and each list's count. Writes nothing and exits with 1
+ * when validate-gamedata.js refuses the build against the counts of the
+ * published one.
  */
 const fs = require('fs');
 const path = require('path');
@@ -19,12 +14,10 @@ const { check } = require('./validate-gamedata.js');
 const ROOT = path.join(__dirname, '..');
 const OUT = path.join(ROOT, 'gamedata');
 const CACHE = path.join(ROOT, '.cache-rathena');
+const REPOSITORY = process.env.GITHUB_REPOSITORY || 'SimonPaidla/arcana-snapshots';
+const PUBLISHED_META = `https://raw.githubusercontent.com/${REPOSITORY}/gamedata/meta.json`;
 
-/**
- * A store that keeps everything in memory. `buildMobData` merges the
- * measured rates it finds in the store; here there are none, which is
- * exactly right - this build must not invent them.
- */
+/** The store `buildMobData` writes to, in memory and empty: no measured rates. */
 function memoryStore() {
   const data = new Map();
   return {
@@ -52,31 +45,43 @@ async function upstreamCommit() {
   }
 }
 
-/** The counts of the build that is already published, if there is one. */
-function previousCounts() {
+/**
+ * The counts of the published build (PUBLISHED_META); else those of the
+ * build in gamedata/; null without either.
+ */
+async function previousCounts() {
+  const countsOf = (meta, where) => {
+    const counts = meta.counts || null;
+    if (counts) console.log(`Comparing with the counts of ${where}.`);
+    return counts;
+  };
   try {
-    return JSON.parse(fs.readFileSync(path.join(OUT, 'meta.json'), 'utf-8')).counts || null;
+    const res = await fetch(PUBLISHED_META);
+    if (res.ok) return countsOf(await res.json(), PUBLISHED_META);
+  } catch { /* offline */ }
+  try {
+    return countsOf(JSON.parse(fs.readFileSync(path.join(OUT, 'meta.json'), 'utf-8')), 'gamedata/meta.json');
   } catch {
     return null;
   }
 }
 
 (async () => {
-  const previous = previousCounts();
+  const previous = await previousCounts();
   const store = memoryStore();
   const started = Date.now();
   await buildMobData({ store, cacheDir: CACHE, log: (t) => console.log(t), signal: undefined });
 
   const out = {
     cards: store.read('cards'),
+    items: store.read('items'),
     mobs: store.read('mobs'),
     drops: store.read('drops'),
     spawns: store.read('spawns'),
+    recipes: store.read('recipes'),
+    pets: store.read('pets'),
   };
 
-  // Nothing is written before it has been judged. An upstream rename does
-  // not announce itself - the parser simply returns nothing, and without
-  // this the empty result would go out to everyone.
   const verdict = check(out, { previous });
   for (const line of verdict.warnings) console.log(`  warning: ${line}`);
   if (!verdict.ok) {

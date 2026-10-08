@@ -1,11 +1,12 @@
 'use strict';
 /**
- * Card descriptions derived from rAthena's script field.
+ * Card, item and pet descriptions derived from rAthena's script field.
  *
  * Cards carry no description in rAthena, but they do carry their script -
  * which is exactly the bonuses the card grants. The control panel does have
  * a description text, but only on the per-item page: 538 requests for
- * something that is already here.
+ * something that is already here. An item's script reads the same way,
+ * and adds what a usable item does: heal, give or rent items.
  *
  * Only unambiguous forms are translated. Everything else is left standing
  * as a script line rather than guessed at - a wrong number would be worse
@@ -27,13 +28,21 @@ const STAT = {
   bNoCastCancel: 'casting cannot be interrupted',
   bUnbreakableWeapon: 'weapon is unbreakable',
   bUnbreakableArmor: 'armor is unbreakable',
+  bUnbreakableHelm: 'headgear is unbreakable',
+  bUnbreakableShield: 'shield is unbreakable',
+  bUnbreakableGarment: 'garment is unbreakable',
+  bUnbreakableShoes: 'shoes are unbreakable',
+  bAtk: 'ATK', bAtkRate: 'ATK',
+  bLongAtkRate: 'ranged damage', bDelayRate: 'after-cast delay', bHealPower: 'healing power',
 };
 // Values given in percent rather than in points.
 const PERCENT = new Set(['bMatkRate', 'bAspdRate', 'bCastrate', 'bUseSPrate',
   'bHPrecovRate', 'bSPrecovRate', 'bMaxHPrate', 'bMaxSPrate', 'bSpeedRate',
-  'bDefRate', 'bMdefRate', 'bCriticalRate', 'bHitRate', 'bFleeRate']);
+  'bDefRate', 'bMdefRate', 'bCriticalRate', 'bHitRate', 'bFleeRate',
+  'bAtkRate', 'bLongAtkRate', 'bDelayRate', 'bHealPower']);
 // Flags without a numeric value.
-const FLAG = new Set(['bNoCastCancel', 'bUnbreakableWeapon', 'bUnbreakableArmor']);
+const FLAG = new Set(['bNoCastCancel', 'bUnbreakableWeapon', 'bUnbreakableArmor',
+  'bUnbreakableHelm', 'bUnbreakableShield', 'bUnbreakableGarment', 'bUnbreakableShoes']);
 
 const RACE = {
   RC_Formless: 'Formless', RC_Undead: 'Undead', RC_Brute: 'Brute',
@@ -41,6 +50,7 @@ const RACE = {
   RC_Demon: 'Demon', RC_DemiHuman: 'Demi-Human', RC_Angel: 'Angel',
   RC_Dragon: 'Dragon', RC_Boss: 'Boss', RC_NonBoss: 'non-Boss',
   RC_All: 'all races', RC_Player: 'Player',
+  RC_Player_Human: 'human players', RC_Player_Doram: 'Doram players',
 };
 const ELEMENT = {
   Ele_Neutral: 'Neutral', Ele_Water: 'Water', Ele_Earth: 'Earth',
@@ -75,20 +85,48 @@ const pct = (n, divisor) => {
 
 const sign = (n) => (Number(n) >= 0 ? `+${n}` : String(n));
 
+// An amount of itemheal: a number, or rand(<min>,<max>).
+const AMOUNT = String.raw`\d+|rand\(\s*\d+\s*,\s*\d+\s*\)`;
+/** "45-65" for rand(45,65), "45" for 45; null for nothing healed. */
+function spanOf(amount) {
+  const [low, high = low] = (amount.match(/\d+/g) || []).map(Number);
+  if (!(high > 0)) return null;
+  return low === high ? String(low) : `${low}-${high}`;
+}
+/** Seconds as whole days, hours or minutes where they divide evenly. */
+function durationOf(seconds) {
+  const unit = [[86_400, 'day'], [3_600, 'hour'], [60, 'minute'], [1, 'second']].find(([size]) => seconds % size === 0);
+  const n = seconds / unit[0];
+  return `${n} ${unit[1]}${n === 1 ? '' : 's'}`;
+}
+
 /** A single script statement. null means "not safely translatable". */
 function translateLine(line, ctx = {}) {
   const item = (id) => (ctx.items && ctx.items.get(Number(id))) || `Item ${id}`;
   const skill = (id) => (ctx.skills && ctx.skills.get(Number(id))) || `Skill ${id}`;
   let m;
 
-  if ((m = /^bonus\s+(b[A-Za-z0-9]+)\s*,\s*(-?\d+)$/.exec(line))) {
+  if ((m = /^bonus\s+(b[A-Za-z0-9]+)\s*,\s*(-?\d+)$/.exec(line)) && STAT[m[1]]) {
     const [, name, value] = m;
-    if (!STAT[name]) return null;
     if (FLAG.has(name)) return STAT[name];
     return `${STAT[name]} ${sign(value)}${PERCENT.has(name) ? '%' : ''}`;
   }
   if ((m = /^bonus\s+(b[A-Za-z0-9]+)$/.exec(line))) {
     return FLAG.has(m[1]) ? STAT[m[1]] : null;
+  }
+  if ((m = new RegExp(`^itemheal\\s+(${AMOUNT})\\s*,\\s*(${AMOUNT})$`).exec(line))) {
+    const healed = [[spanOf(m[1]), 'HP'], [spanOf(m[2]), 'SP']].filter(([span]) => span).map(([span, what]) => `${span} ${what}`);
+    return healed.length ? `restores ${healed.join(' and ')}` : null;
+  }
+  if ((m = /^percentheal\s+(\d+)\s*,\s*(\d+)$/.exec(line))) {
+    const healed = [[m[1], 'HP'], [m[2], 'SP']].filter(([n]) => Number(n) > 0).map(([n, what]) => `${n}% ${what}`);
+    return healed.length ? `restores ${healed.join(' and ')}` : null;
+  }
+  if ((m = /^getitem\s+(\d+)\s*,\s*(\d+)$/.exec(line))) {
+    return Number(m[2]) > 0 ? `gives ${item(m[1])} x ${m[2]}` : null;
+  }
+  if ((m = /^rentitem\s+(\d+)\s*,\s*(\d+)$/.exec(line))) {
+    return Number(m[2]) > 0 ? `gives ${item(m[1])} for ${durationOf(Number(m[2]))}` : null;
   }
   if ((m = /^bonus2\s+bAddRace\s*,\s*(\w+)\s*,\s*(-?\d+)$/.exec(line))) {
     return RACE[m[1]] ? `damage to ${RACE[m[1]]} ${sign(m[2])}%` : null;
