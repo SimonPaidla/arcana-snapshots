@@ -13,18 +13,33 @@
  *   items/type-<id>/<time>.json         a part of items: one item type
  *   items/ids/<time>-<list>.json        a part of items: a list of item IDs
  *
- * Everything else is refused: a modified, deleted or renamed file, another
- * path, a symbolic link, an executable file, a submodule, a file above
- * MAX_FILE_BYTES, a file the validator throws on.
+ * Or a build of the game data, on its own: files of GAME_DATA_FILES under
+ * gamedata/, added or modified, meta.json among them. The build at the
+ * head commit - its changed files and those it keeps - has to pass
+ * `check()` of `validate-gamedata.js` against the counts of the published
+ * build (PUBLISHED_REF), `checkMeta()` against its lists, and be built
+ * after the build it replaces.
  *
- *   BASE_REF  the archive the contribution is compared to (default origin/main)
- *   HEAD_REF  the pull request's head commit (default HEAD)
+ * Everything else is refused: a modified, deleted or renamed file outside
+ * a build, another path, a symbolic link, an executable file, a submodule,
+ * a file above MAX_FILE_BYTES, a file the validator throws on.
+ *
+ *   BASE_REF       the archive the contribution is compared to (default origin/main)
+ *   HEAD_REF       the pull request's head commit (default HEAD)
+ *   PUBLISHED_REF  the published game data (default origin/gamedata)
  */
 
 const { execFileSync } = require('child_process');
 const {
   validateSnapshot, knownOf, cardCountOf, validateItemSnapshot, itemCountOf, isItemPath, STORE_MAX_AGE_DAYS,
 } = require('./validate.js');
+const { check: checkGameData, checkMeta: checkGameDataMeta } = require('./validate-gamedata.js');
+
+/** The files of a build of the game data, by list; meta.json and the lists every build carries are required. */
+const GAME_DATA_FILES = {
+  cards: true, mobs: true, drops: true, spawns: true, meta: true, items: false, recipes: false, pets: false,
+};
+const GAME_DATA_DIR = 'gamedata/';
 
 /** The newest crawls on the target branch a new crawl is compared to. */
 const COMPARE_DEPTH = 10;
@@ -115,6 +130,7 @@ function main() {
     complain('The pull request changes nothing.');
     return report();
   }
+  if (changed.some(({ file }) => file.startsWith(GAME_DATA_DIR))) return gameDataBuild(base, head, changed);
 
   // Additions only, each a crawl or a part.
   const crawls = [];
@@ -169,6 +185,79 @@ function main() {
     }
   }
   return report(crawls.length + parts.length);
+}
+
+/** A file of `ref` as JSON; null when `ref` or the file is missing or it does not parse. */
+function jsonAt(ref, file) {
+  try {
+    return JSON.parse(execFileSync('git', ['show', `${ref}:${file}`], {
+      encoding: 'utf-8', maxBuffer: MAX_FILE_BYTES, stdio: ['ignore', 'pipe', 'ignore'],
+    }));
+  } catch {
+    return null;
+  }
+}
+
+/** Whether the head commit holds `file`. */
+function holds(head, file) {
+  return git('ls-tree', '--name-only', head, '--', file).trim() === file;
+}
+
+/**
+ * A build of the game data: nothing but files of GAME_DATA_FILES under
+ * gamedata/, added or modified, meta.json among them. The build at the
+ * head commit is judged as a whole: `check()` against the counts of the
+ * published build, `checkMeta()` against its lists, and its build time
+ * after that of the build it replaces.
+ */
+function gameDataBuild(base, head, changed) {
+  for (const { status, file } of changed) {
+    const name = file.startsWith(GAME_DATA_DIR) && file.endsWith('.json')
+      ? file.slice(GAME_DATA_DIR.length, -'.json'.length) : null;
+    if (name === null || !Object.hasOwn(GAME_DATA_FILES, name)) {
+      complain(`\`${file}\`: a build of the game data changes nothing but its files under \`${GAME_DATA_DIR}\`.`);
+    } else if (status !== 'A' && status !== 'M') {
+      complain(`\`${file}\`: ${status === 'D' ? 'is deleted' : `has status ${status}`}. A build adds or modifies its files.`);
+    }
+  }
+  if (!changed.some(({ file }) => file === `${GAME_DATA_DIR}meta.json`)) {
+    complain(`\`${GAME_DATA_DIR}meta.json\` is unchanged: every build carries its own.`);
+  }
+  if (problems.length) return report();
+
+  const lists = {};
+  let meta = null;
+  for (const [name, required] of Object.entries(GAME_DATA_FILES)) {
+    const file = `${GAME_DATA_DIR}${name}.json`;
+    if (!holds(head, file)) {
+      if (required) complain(`\`${file}\` is missing.`);
+      continue;
+    }
+    const read = readJson(head, file);
+    if (!read) continue;
+    if (name === 'meta') meta = read.data;
+    else lists[name] = read.data;
+  }
+  if (problems.length) return report();
+
+  // The build it replaces: the published one, and the one on the target branch.
+  const before = [jsonAt(process.env.PUBLISHED_REF || 'origin/gamedata', 'meta.json'), jsonAt(base, `${GAME_DATA_DIR}meta.json`)]
+    .filter((m) => m && typeof m === 'object');
+  const previous = before.find((m) => m.counts)?.counts ?? null;
+  const builtBefore = before.map((m) => String(m.builtAt ?? '')).sort().at(-1) ?? '';
+
+  const fine = [
+    judged(GAME_DATA_DIR, validated(GAME_DATA_DIR, () => checkGameData(lists, { previous }))),
+    judged(`${GAME_DATA_DIR}meta.json`, validated(`${GAME_DATA_DIR}meta.json`, () => ({ warnings: [], ...checkGameDataMeta(meta, lists) }))),
+  ].every(Boolean);
+  if (fine && !(String(meta.builtAt) > builtBefore)) {
+    complain(`\`${GAME_DATA_DIR}meta.json\`: built at ${meta.builtAt}, not after the build it replaces (${builtBefore}).`);
+  }
+  if (fine) {
+    console.log(`  ${GAME_DATA_DIR}: ${Object.entries(lists).map(([k, v]) => `${v.length} ${k}`).join(', ')}`
+      + (previous ? ' - against the published counts' : ' - no published build to compare with'));
+  }
+  return report(changed.length);
 }
 
 /** Prints the verdict; the exit code. */

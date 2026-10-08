@@ -22,6 +22,7 @@ var __copyProps = (to, from, except, desc) => {
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 var gamedata_exports = {};
 __export(gamedata_exports, {
+  DATA_SOURCES: () => DATA_SOURCES,
   FLOOR: () => FLOOR,
   GAME_DATA_KEYS: () => GAME_DATA_KEYS,
   GROWTH_WARN: () => GROWTH_WARN,
@@ -32,9 +33,12 @@ __export(gamedata_exports, {
   SHRINK_ERROR: () => SHRINK_ERROR,
   SHRINK_WARN: () => SHRINK_WARN,
   check: () => checkGameData,
-  checkGameData: () => checkGameData
+  checkGameData: () => checkGameData,
+  checkGameDataMeta: () => checkGameDataMeta,
+  checkMeta: () => checkGameDataMeta
 });
 module.exports = __toCommonJS(gamedata_exports);
+const DATA_SOURCES = ["server", "rathena"];
 const ITEM_TYPE_IDS = [0, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 18];
 const GAME_DATA_KEYS = ["cards", "mobs", "drops", "spawns"];
 const OPTIONAL_GAME_DATA_KEYS = ["items", "recipes", "pets"];
@@ -74,21 +78,22 @@ const textOrNull = (v) => v === null || typeof v === "string";
 const amountOrNull = (v) => v === null || amount(v);
 const optional = (v, sound) => v === void 0 || sound(v);
 const ITEM_FIGURES = ["attack", "defense", "weaponLevel", "equipLevel"];
+const source = (v) => DATA_SOURCES.includes(v);
 const ENTRY_SOUND = {
   cards: (e) => !!e && id(e.itemId) && name(e.name) && textOrNull(e.slotTarget) && textOrNull(e.effect) && textOrNull(e.scriptRest),
-  mobs: (e) => !!e && id(e.mobId) && name(e.name) && (e.level === null || count(e.level)) && (e.hp === null || amount(e.hp)) && typeof e.isBoss === "boolean",
-  drops: (e) => !!e && id(e.mobId) && id(e.itemId) && amount(e.rate) && e.rate > 0 && e.rate <= 100,
+  mobs: (e) => !!e && id(e.mobId) && name(e.name) && (e.level === null || count(e.level)) && (e.hp === null || amount(e.hp)) && typeof e.isBoss === "boolean" && optional(e.from, source),
+  drops: (e) => !!e && id(e.mobId) && id(e.itemId) && amount(e.rate) && e.rate > 0 && e.rate <= 100 && source(e.source),
   spawns: (e) => !!e && id(e.mobId) && name(e.map) && count(e.amount),
-  items: (e) => !!e && id(e.itemId) && name(e.name) && Number.isInteger(e.type) && textOrNull(e.subType) && count(e.slots) && amount(e.buy) && amount(e.sell) && amount(e.weight) && typeof e.renewal === "boolean" && ITEM_FIGURES.every((key) => optional(e[key], amountOrNull)) && optional(e.locations, (v) => Array.isArray(v) && v.every(name)) && optional(e.refineable, (v) => typeof v === "boolean") && optional(e.effect, textOrNull) && optional(e.shop, (v) => v === null || amount(v) && v > 0),
+  items: (e) => !!e && id(e.itemId) && name(e.name) && Number.isInteger(e.type) && textOrNull(e.subType) && count(e.slots) && amount(e.buy) && amount(e.sell) && amount(e.weight) && typeof e.renewal === "boolean" && ITEM_FIGURES.every((key) => optional(e[key], amountOrNull)) && optional(e.locations, (v) => Array.isArray(v) && v.every(name)) && optional(e.refineable, (v) => typeof v === "boolean") && optional(e.effect, textOrNull) && optional(e.shop, (v) => v === null || amount(v) && v > 0) && optional(e.from, source),
   recipes: (e) => !!e && id(e.itemId) && id(e.amount) && Array.isArray(e.materials) && e.materials.length > 0 && e.materials.every((m) => !!m && id(m.itemId) && id(m.amount)),
   pets: (e) => !!e && id(e.mobId) && id(e.eggId) && (e.tameItemId === null || id(e.tameItemId)) && (e.foodId === null || id(e.foodId)) && textOrNull(e.bonus)
 };
 const ENTRY_FORM = {
   cards: "an item id, a name, slot, effect and script rest as text or null",
-  mobs: "a mob id, a name, level and HP of 0 or more or null, isBoss",
-  drops: "a mob and an item id, a rate above 0 up to 100",
+  mobs: "a mob id, a name, level and HP of 0 or more or null, isBoss, where given from server or rathena",
+  drops: "a mob and an item id, a rate above 0 up to 100, a source of server or rathena",
   spawns: "a mob id, a map, an amount of 0 or more",
-  items: "an item id, a name, a type, sub-type as text or null, slots, buy, sell and weight of 0 or more, renewal; where given, attack, defense, weapon and equip level of 0 or more or null, locations as a list of text, refineable, effect as text or null, a shop price above 0 or null",
+  items: "an item id, a name, a type, sub-type as text or null, slots, buy, sell and weight of 0 or more, renewal; where given, attack, defense, weapon and equip level of 0 or more or null, locations as a list of text, refineable, effect as text or null, a shop price above 0 or null, from server or rathena",
   recipes: "an item id, an amount, materials of item ids and amounts",
   pets: "a mob and an egg id, tame and food item ids or null, a bonus as text or null"
 };
@@ -148,8 +153,6 @@ function checkGameData(data, { previous = null } = {}) {
   if (readableCards < JOIN_FLOOR.readableCards) {
     errors.push(`only ${readableCards} card effects read as plain text (expected at least ${JOIN_FLOOR.readableCards})`);
   }
-  const foreign = [...new Set(game.drops.map((d) => d.source))].filter((s) => s !== "rathena");
-  if (foreign.length) errors.push(`drop rates carry sources other than rathena: ${foreign.join(", ")}`);
   if (game.items) {
     const types = new Set(ITEM_TYPE_IDS);
     const untyped = game.items.filter((i) => !types.has(i.type)).length;
@@ -174,4 +177,27 @@ function checkGameData(data, { previous = null } = {}) {
     warnings,
     counts: { ...counts, droppableCards, spawningMobs, readableCards }
   };
+}
+const isoTime = (v) => typeof v === "string" && !Number.isNaN(Date.parse(v)) && new Date(v).toISOString() === v;
+function checkGameDataMeta(meta, data) {
+  const errors = [];
+  const m = meta;
+  if (!m || typeof m !== "object") return { ok: false, errors: ["meta.json: not an object"] };
+  if (!isoTime(m.builtAt)) errors.push("meta.json: builtAt is not an ISO time");
+  const rathena = m.rathena;
+  if (rathena !== null && !(rathena && /^[0-9a-f]{40}$/.test(String(rathena.sha)) && textOrNull(rathena.committedAt))) {
+    errors.push("meta.json: rathena is neither null nor a commit of 40 hex digits with its time");
+  }
+  const server = m.server;
+  if (server != null && !(isoTime(server.readAt) && count(server.items) && count(server.mobs) && count(server.drops))) {
+    errors.push("meta.json: server is neither null nor a read time with counts of 0 or more");
+  }
+  const counts = m.counts ?? {};
+  for (const key of [...GAME_DATA_KEYS, ...OPTIONAL_GAME_DATA_KEYS]) {
+    const list = data[key];
+    if (Array.isArray(list) && counts[key] !== list.length) {
+      errors.push(`meta.json: counts.${key} is ${String(counts[key])}, the list holds ${list.length}`);
+    }
+  }
+  return { ok: errors.length === 0, errors };
 }

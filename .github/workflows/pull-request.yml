@@ -4,7 +4,8 @@
 # Runs on pull_request_target: the workflow and scripts/ are main's, the
 # pull request's commits are fetched as data, and nothing of the pull
 # request is executed. scripts/check-pr.js reads its files with git and
-# accepts new files under snapshots/ and items/ only.
+# accepts new files under snapshots/ and items/, or a build of the game
+# data under gamedata/ on its own.
 name: Pull request
 
 on:

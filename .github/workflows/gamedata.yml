@@ -1,16 +1,16 @@
-# Builds the game data from rAthena daily (scripts/build-gamedata.js,
-# checked by validate-gamedata.js against the published counts) and
-# commits it to the gamedata branch, which no ruleset protects, when a
-# list changed (scripts/publish-gamedata.sh).
+# Publishes the game data on the gamedata branch, where Arcana reads it.
 #
-# The build runs third-party code - the yaml package, at a fixed version -
-# with a read-only token; only the publish job, which runs nothing but
-# this repository's script, may write.
+# A build arrives as a pull request into main that writes gamedata/
+# (scripts/check-pr.js judges it). Once it is merged, this workflow runs
+# nothing but scripts/publish-gamedata.sh, which judges the build again
+# against the published one and commits it to the gamedata branch when a
+# file changed.
 name: Game data
 
 on:
-  schedule:
-    - cron: '17 2 * * *'   # 02:17 UTC
+  push:
+    branches: [main]
+    paths: ['gamedata/**']
   workflow_dispatch:
 
 permissions:
@@ -21,38 +21,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      # The builder's one dependency, at a fixed version, without install scripts.
-      - run: npm install --no-save --no-audit --no-fund --ignore-scripts yaml@2.9.1
-
-      - name: Build from rAthena
-        env:
-          # Reads the rAthena commit the data is built from.
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/build-gamedata.js
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: gamedata
-          path: gamedata/
-          retention-days: 1
-
   publish:
-    needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -64,11 +33,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: gamedata
-          path: gamedata/
 
       - name: Publish if anything changed
         run: |
