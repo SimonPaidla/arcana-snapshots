@@ -178,12 +178,9 @@ Arcana takes a build only when `checkGameData()` accepts it.
 installations that read it there, until they have updated. Once a build
 is merged, `.github/workflows/gamedata.yml` copies it with
 `scripts/publish-gamedata.sh`, which judges it again first. The workflow
-refuses to run on any ref but `main`, runs in the environment
-`publish-gamedata` - whose secret, a deploy key, only a job on `main`
-receives - and pushes with that key; the ruleset on `gamedata` restricts
-updates to deploy keys and blocks deletion and force pushes. Once no
-installation reads the branch, it is frozen without a bypass and the
-workflow goes.
+refuses to run on any ref but `main` and pushes with its own token; the
+ruleset on `gamedata` blocks deletion and force pushes. Once no
+installation reads the branch, the workflow goes.
 
 ## Maintenance
 
@@ -239,5 +236,5 @@ gamedata/             the newest build of the game data, through accepted pull r
 | Branch | What is on it | Who writes it |
 |---|---|---|
 | `main` | the archive, the game data's newest build, the scripts, the workflows | contributors, through accepted pull requests; the maintainer |
-| `gamedata` | a copy of the build on `main`: seven lists and their `meta.json` | the game data workflow, with its deploy key |
+| `gamedata` | a copy of the build on `main`: seven lists and their `meta.json` | the game data workflow |
 | `crawl/…` | an offered crawl, the head of its pull request, deleted once merged | Arcana Crawler |

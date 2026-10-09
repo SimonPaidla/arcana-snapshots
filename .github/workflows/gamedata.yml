@@ -8,10 +8,7 @@
 # runs three steps:
 #   1. a refusal of every ref but refs/heads/main - a manual run from
 #      another branch, or this file on another branch, publishes nothing;
-#   2. actions/checkout, pinned by commit, of main - with the deploy key of
-#      the environment `publish-gamedata` (secret GAMEDATA_DEPLOY_KEY) where
-#      it has one, the one writer the ruleset on the gamedata branch lets
-#      through; else with this job's token;
+#   2. actions/checkout, pinned by commit, of main, with this job's token;
 #   3. scripts/publish-gamedata.sh on the runner's own Node, which judges
 #      the build again against the published one and commits it to the
 #      gamedata branch when a file changed.
@@ -34,8 +31,6 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Its secret is only given to a job on main (deployment branches: main).
-    environment: publish-gamedata
     permissions:
       contents: write
 
@@ -49,7 +44,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: refs/heads/main
-          ssh-key: ${{ secrets.GAMEDATA_DEPLOY_KEY }}
 
       - name: Publish if anything changed
         run: |
