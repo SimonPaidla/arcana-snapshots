@@ -1,0 +1,17 @@
+{
+  "builtAt": "2026-10-09T18:20:20.254Z",
+  "tookMs": 144089,
+  "process": 1,
+  "counts": {
+    "icon": 7224,
+    "image": 7225,
+    "mob": 1007,
+    "tile": 271,
+    "pictures": 7904,
+    "packs": 1
+  },
+  "index": {
+    "sha256": "796e94199cc4b7b9310c72852dfc64c793d70aef8b3cdf3fb3e9e49fdceb3ea9",
+    "bytes": 383820
+  }
+}
