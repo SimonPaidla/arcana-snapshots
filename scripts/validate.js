@@ -22,9 +22,12 @@ var __copyProps = (to, from, except, desc) => {
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 var snapshot_exports = {};
 __export(snapshot_exports, {
+  AMOUNT_MAX: () => AMOUNT_MAX,
   CARDS_MAX: () => CARDS_MAX,
   CARD_ITEM_TYPE: () => CARD_ITEM_TYPE,
   CLOCK_SKEW_MS: () => CLOCK_SKEW_MS,
+  COORD_MAX: () => COORD_MAX,
+  ITEM_ID_MAX: () => ITEM_ID_MAX,
   ITEM_LIST_MAX: () => ITEM_LIST_MAX,
   ITEM_NAME_MAX: () => ITEM_NAME_MAX,
   ITEM_SNAPSHOT_SCHEMA: () => ITEM_SNAPSHOT_SCHEMA,
@@ -33,6 +36,7 @@ __export(snapshot_exports, {
   PART_ITEM_TYPES: () => PART_ITEM_TYPES,
   PRICE_MAX: () => PRICE_MAX,
   REFINE_MAX: () => REFINE_MAX,
+  SHOP_TEXT_MAX: () => SHOP_TEXT_MAX,
   SNAPSHOT_FILE_PATTERN: () => SNAPSHOT_FILE_PATTERN,
   SNAPSHOT_SCHEMA: () => SNAPSHOT_SCHEMA,
   STORE_MAX_AGE_DAYS: () => STORE_MAX_AGE_DAYS,
@@ -57,8 +61,10 @@ __export(snapshot_exports, {
   knownOf: () => knownOf,
   listKey: () => listKey,
   pathFor: () => pathFor,
+  placeOf: () => placeOf,
   scopeProblem: () => scopeProblem,
   shopOrderKey: () => shopOrderKey,
+  shopTextOf: () => shopTextOf,
   shopsOf: () => shopsOf,
   snapshotOf: () => snapshotOf,
   snapshotText: () => snapshotText,
@@ -71,6 +77,22 @@ const SNAPSHOT_SCHEMA = 5;
 const LOWEST_N = 10;
 const PRICE_MAX = 1e10;
 const PRICE_WARN = 2e9;
+const AMOUNT_MAX = 65535;
+const ITEM_ID_MAX = 2147483647;
+const COORD_MAX = 1e3;
+const SHOP_TEXT_MAX = 100;
+const UNSAFE_TEXT_SOURCE = "[\\u0000-\\u001F\\u007F-\\u009F\\u061C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]|[\\uD800-\\uDBFF](?![\\uDC00-\\uDFFF])|(?<![\\uD800-\\uDBFF])[\\uDC00-\\uDFFF]";
+const UNSAFE_TEXT = new RegExp(UNSAFE_TEXT_SOURCE);
+function cleanText(text, max) {
+  let out = "";
+  for (const char of text.replace(new RegExp(UNSAFE_TEXT_SOURCE, "g"), "")) {
+    if (out.length + char.length > max) break;
+    out += char;
+  }
+  return out;
+}
+const shopTextOf = (text) => text === null ? null : cleanText(text, SHOP_TEXT_MAX);
+const placeOf = (value) => Number.isInteger(value) && value >= 0 && value <= COORD_MAX ? value : null;
 const CLOCK_SKEW_MS = 10 * 60 * 1e3;
 const STORE_MAX_AGE_DAYS = 30;
 const TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
@@ -106,7 +128,7 @@ const byCode = (a, b) => a < b ? -1 : a > b ? 1 : 0;
 function shopsOf(offers) {
   const shops = /* @__PURE__ */ new Map();
   for (const o of offers) {
-    const who = [o.merchant, o.shop, o.map, o.x, o.y, []];
+    const who = [shopTextOf(o.merchant), shopTextOf(o.shop), shopTextOf(o.map), placeOf(o.x), placeOf(o.y), []];
     const key = shopOrderKey(who);
     const shop = shops.get(key) ?? who;
     shops.set(key, shop);
@@ -214,10 +236,15 @@ function median(values) {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }
 const isInt = (v) => Number.isInteger(v);
-const isNum = (v) => typeof v === "number" && Number.isFinite(v);
 const isObject = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
-const isText = (v) => v === null || typeof v === "string";
-const isPlace = (v) => v === null || isInt(v);
+const isText = (v) => v === null || typeof v === "string" && v.length <= SHOP_TEXT_MAX && !UNSAFE_TEXT.test(v);
+const isPlace = (v) => v === null || isInt(v) && v >= 0 && v <= COORD_MAX;
+const isItemId = (v) => isInt(v) && v > 0 && v <= ITEM_ID_MAX;
+const isPrice = (v) => isInt(v) && v > 0 && v <= PRICE_MAX;
+const isAmount = (v) => isInt(v) && v > 0 && v <= AMOUNT_MAX;
+const valueText = (v) => typeof v === "number" ? String(v) : String(JSON.stringify(v)).slice(0, 40);
+const SHOP_PROBLEM = `merchant, shop and map are not text of up to ${SHOP_TEXT_MAX} characters without control characters, or null.`;
+const PLACE_PROBLEM = `x and y are not integers of 0 to ${COORD_MAX} or null.`;
 function validateSnapshot(data, context = {}) {
   const {
     fileName = null,
@@ -275,11 +302,11 @@ function validateSnapshot(data, context = {}) {
     }
     const [merchant, name, map, x, y, offers] = shop;
     if (!isText(merchant) || !isText(name) || !isText(map)) {
-      reject(`${at}: merchant, shop and map are not text or null.`);
+      reject(`${at}: ${SHOP_PROBLEM}`);
       continue;
     }
     if (!isPlace(x) || !isPlace(y)) {
-      reject(`${at}: x and y are not integers or null.`);
+      reject(`${at}: ${PLACE_PROBLEM}`);
       continue;
     }
     const key = shopOrderKey(shop);
@@ -299,16 +326,16 @@ function validateSnapshot(data, context = {}) {
         break;
       }
       const [itemId, price, amount] = offer;
-      if (!isInt(itemId) || itemId <= 0) {
-        reject(`${at}: invalid itemId ${String(itemId)}.`);
+      if (!isItemId(itemId)) {
+        reject(`${at}: invalid itemId ${valueText(itemId)}.`);
         break;
       }
-      if (!isNum(price) || price <= 0 || price > PRICE_MAX) {
-        reject(`${at}: card ${itemId}: price ${String(price)} is implausible.`);
+      if (!isPrice(price)) {
+        reject(`${at}: card ${itemId}: price ${valueText(price)} is not a whole number of zeny from 1 to ${PRICE_MAX}.`);
         break;
       }
-      if (!isInt(amount) || amount <= 0) {
-        reject(`${at}: card ${itemId}: amount ${String(amount)} is not a positive integer.`);
+      if (!isAmount(amount)) {
+        reject(`${at}: card ${itemId}: amount ${valueText(amount)} is not an integer of 1 to ${AMOUNT_MAX}.`);
         break;
       }
       if (itemId < lastCard || itemId === lastCard && price < lastPrice) {
@@ -340,14 +367,8 @@ const REFINE_MAX = 20;
 const CARDS_MAX = 4;
 const ITEM_NAME_MAX = 100;
 function itemNameOf(listed) {
-  let name = "";
-  for (const char of listed.replace(/\s*\[\d+\]\s*$/, "").trim()) {
-    if (name.length + char.length > ITEM_NAME_MAX) break;
-    name += char;
-  }
-  return name.trim();
+  return cleanText(listed.replace(new RegExp(UNSAFE_TEXT_SOURCE, "g"), "").replace(/\s*\[\d+\]\s*$/, "").trim(), ITEM_NAME_MAX).trim();
 }
-const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
 const ITEM_PATH = /^items\/(?:type-(\d{1,2})|ids)\/(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z)(-[0-9a-f]{8})?\.json$/;
 const listKey = (items) => (0, import_node_crypto.createHash)("sha256").update(items.join(",")).digest("hex").slice(0, 8);
 const itemFolderOf = (scope) => "type" in scope ? `type-${scope.type}` : "ids";
@@ -376,7 +397,7 @@ function compareItemOffers(a, b) {
 function itemShopsOf(offers) {
   const shops = /* @__PURE__ */ new Map();
   for (const o of offers) {
-    const who = [o.merchant, o.shop, o.map, o.x, o.y, []];
+    const who = [shopTextOf(o.merchant), shopTextOf(o.shop), shopTextOf(o.map), placeOf(o.x), placeOf(o.y), []];
     const key = shopOrderKey(who);
     const shop = shops.get(key) ?? who;
     shops.set(key, shop);
@@ -424,7 +445,7 @@ function scopeProblem(scope) {
       return `The scope's items are not a list of 1 to ${ITEM_LIST_MAX} items.`;
     }
     for (const [i, item] of items.entries()) {
-      if (!isInt(item) || item <= 0) return `The scope's item ${String(item)} is not an item ID.`;
+      if (!isItemId(item)) return `The scope's item ${valueText(item)} is not an item ID of 1 to ${ITEM_ID_MAX}.`;
       if (i > 0 && item <= items[i - 1]) return "The scope's items are not ascending without repeats.";
     }
     return null;
@@ -483,11 +504,11 @@ function validateItemSnapshot(data, context = {}) {
     }
     const [merchant, name, map, x, y, offers] = shop;
     if (!isText(merchant) || !isText(name) || !isText(map)) {
-      reject(`${at}: merchant, shop and map are not text or null.`);
+      reject(`${at}: ${SHOP_PROBLEM}`);
       continue;
     }
     if (!isPlace(x) || !isPlace(y)) {
-      reject(`${at}: x and y are not integers or null.`);
+      reject(`${at}: ${PLACE_PROBLEM}`);
       continue;
     }
     const key = shopOrderKey(shop);
@@ -524,7 +545,7 @@ function validateItemSnapshot(data, context = {}) {
         reject(`Names: ${JSON.stringify(id).slice(0, 40)} is not the id of an item a shop offers.`);
         break;
       }
-      if (typeof name !== "string" || !name.trim() || name.length > ITEM_NAME_MAX || LONE_SURROGATE.test(name)) {
+      if (typeof name !== "string" || !name.trim() || name.length > ITEM_NAME_MAX || UNSAFE_TEXT.test(name)) {
         reject(`Names: the name of item ${id} is not well-formed text of 1 to ${ITEM_NAME_MAX} characters.`);
         break;
       }
@@ -542,13 +563,13 @@ function itemOfferProblem(offer, listed) {
     return "an offer is not a list of item, price and amount, with refine and cards for equipment.";
   }
   const [itemId, price, amount, refine, cards] = offer;
-  if (!isInt(itemId) || itemId <= 0) return `invalid itemId ${String(itemId)}.`;
+  if (!isItemId(itemId)) return `invalid itemId ${valueText(itemId)}.`;
   if (listed && !listed.has(itemId)) return `item ${itemId} is not one of the scope's items.`;
-  if (!isNum(price) || price <= 0 || price > PRICE_MAX) return `item ${itemId}: price ${String(price)} is implausible.`;
-  if (!isInt(amount) || amount <= 0) return `item ${itemId}: amount ${String(amount)} is not a positive integer.`;
+  if (!isPrice(price)) return `item ${itemId}: price ${valueText(price)} is not a whole number of zeny from 1 to ${PRICE_MAX}.`;
+  if (!isAmount(amount)) return `item ${itemId}: amount ${valueText(amount)} is not an integer of 1 to ${AMOUNT_MAX}.`;
   if (offer.length === 3) return null;
-  if (!isInt(refine) || refine < 0 || refine > REFINE_MAX) return `item ${itemId}: refine ${String(refine)} is not 0 to ${REFINE_MAX}.`;
-  if (!Array.isArray(cards) || cards.length > CARDS_MAX || !cards.every((c) => isInt(c) && c > 0)) {
+  if (!isInt(refine) || refine < 0 || refine > REFINE_MAX) return `item ${itemId}: refine ${valueText(refine)} is not 0 to ${REFINE_MAX}.`;
+  if (!Array.isArray(cards) || cards.length > CARDS_MAX || !cards.every(isItemId)) {
     return `item ${itemId}: the cards are not a list of up to ${CARDS_MAX} item IDs.`;
   }
   if (refine === 0 && cards.length === 0) return `item ${itemId}: the long form without refine or cards.`;

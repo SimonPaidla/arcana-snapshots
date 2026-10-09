@@ -6,14 +6,21 @@
  *                offer count), the crawls left out with the reason, and
  *                under `items` every part of items the validator passes
  *                (path, time, item and offer count, bytes, schema)
+ *   recent.json  index.json restricted to the last RECENT_DAYS days: the
+ *                crawls within them of its newest crawl, the parts within
+ *                them of its newest part
  *   series.json  every card's min, median, mean, max and count per counted crawl
  *   latest.json  the newest counted crawl as stored
+ *
+ * The crawls are read one at a time: of each only its entry and its
+ * fingerprint are kept for the counting, and the newest counted crawl is
+ * read again for latest.json.
  */
 
 const fs = require('fs');
 const path = require('path');
 const {
-  byCard, cardCountOf, dedupeSnapshots, isSnapshotShape, MIN_GAP_MS, SNAPSHOT_SCHEMA,
+  byCard, cardCountOf, dedupeSnapshots, fingerprintOf, isSnapshotShape, MIN_GAP_MS, SNAPSHOT_SCHEMA,
   isItemPath, itemCountOf, validateItemSnapshot, ITEM_SNAPSHOT_SCHEMA,
 } = require('./validate.js');
 
@@ -21,6 +28,10 @@ const ROOT = path.join(__dirname, '..');
 const SOURCE = path.join(ROOT, 'snapshots');
 const ITEMS = path.join(ROOT, 'items');
 const TARGET = path.join(ROOT, 'build');
+
+/** The days recent.json covers: a day more than Arcana's cache keeps. */
+const RECENT_DAYS = 32;
+const DAY_MS = 86_400_000;
 
 /**
  * Every snapshot, flat under snapshots/.
@@ -73,12 +84,21 @@ function allParts() {
   return { parts: out, skipped };
 }
 
+const readCrawl = (rel) => JSON.parse(fs.readFileSync(path.join(ROOT, ...rel.split('/')), 'utf-8'));
+
+/** The first crawl time within RECENT_DAYS of the newest of `list`; '' for an empty list. */
+function recentFrom(list) {
+  const newest = list.reduce((max, e) => (e.crawledAt > max ? e.crawledAt : max), '');
+  return newest ? new Date(Date.parse(newest) - RECENT_DAYS * DAY_MS).toISOString() : '';
+}
+
 function main() {
   const files = allFiles();
   const crawls = [];
+  /** What dedupeSnapshots() reads of a crawl: its time, its offer count, and its shops as their fingerprint. */
+  const prints = [];
   let otherSchema = 0;
   const cards = new Map();
-  let newest = null;
 
   for (const rel of files) {
     const full = path.join(ROOT, ...rel.split('/'));
@@ -91,26 +111,25 @@ function main() {
       otherSchema += 1;
       continue;
     }
-
-    crawls.push({
+    const entry = {
       path: rel, crawledAt: data.crawledAt,
       cardCount: cardCountOf(data), offerCount: data.offerCount ?? null,
       bytes: fs.statSync(full).size, withOffers: true,
       complete: data.complete ?? null,
       schemaVersion: data.schemaVersion ?? null,
+    };
+    crawls.push(entry);
+    // Equal shops have equal fingerprints; a crawl without shops stays without.
+    prints.push({
+      crawledAt: data.crawledAt, offerCount: data.offerCount, shops: data.shops.length ? [fingerprintOf(data)] : [], entry,
     });
-
   }
 
   crawls.sort((a, b) => a.crawledAt.localeCompare(b.crawledAt));
   if (otherSchema) console.log(`  ${otherSchema} file(s) not of schema ${SNAPSHOT_SCHEMA}, not listed`);
 
   // --- The counted crawls: dedupeSnapshots(), as Arcana reads them --------
-  const loaded = crawls.map((c) => ({
-    ...JSON.parse(fs.readFileSync(path.join(ROOT, ...c.path.split('/')), 'utf-8')),
-    __entry: c,
-  }));
-  const counted = new Set(dedupeSnapshots(loaded).map((s) => s.__entry.path));
+  const counted = new Set(dedupeSnapshots(prints).map((s) => s.entry.path));
   const skipped = crawls.filter((c) => !counted.has(c.path)).map((c) => ({
     path: c.path, crawledAt: c.crawledAt,
     reason: `not counted: within ${MIN_GAP_MS / 60000} minutes of another run, `
@@ -121,16 +140,12 @@ function main() {
     for (const s of skipped) console.log(`    ${s.path}`);
   }
   const kept = crawls.filter((c) => counted.has(c.path));
-  for (const s of loaded) {
-    if (!counted.has(s.__entry.path)) continue;
-    if (!newest || s.crawledAt > newest.crawledAt) newest = s;
-  }
-  if (newest) delete newest.__entry;
+  const newestEntry = kept.at(-1) ?? null;
+  const newest = newestEntry ? readCrawl(newestEntry.path) : null;
 
   // Each point's first field is its crawl's index in `kept`.
   kept.forEach((crawl, i) => {
-    const data = JSON.parse(fs.readFileSync(path.join(ROOT, ...crawl.path.split('/')), 'utf-8'));
-    for (const card of byCard(data).cards) {
+    for (const card of byCard(readCrawl(crawl.path)).cards) {
       if (!Number.isInteger(card.itemId)) continue;
       if (!cards.has(card.itemId)) cards.set(card.itemId, []);
       cards.get(card.itemId).push([i, card.min, card.median, card.mean, card.max, card.count]);
@@ -148,10 +163,21 @@ function main() {
     return fs.statSync(file).size;
   };
 
+  const crawlsFrom = recentFrom(kept);
+  const partsFrom = recentFrom(items.parts);
   const sizes = {
     // The counted crawls, the crawls left out with the reason, every part.
     'index.json': write('index.json', {
       schemaVersion: SNAPSHOT_SCHEMA, itemSchemaVersion: ITEM_SNAPSHOT_SCHEMA, builtAt, crawls: kept, skipped, items: items.parts,
+    }),
+    'recent.json': write('recent.json', {
+      schemaVersion: SNAPSHOT_SCHEMA,
+      itemSchemaVersion: ITEM_SNAPSHOT_SCHEMA,
+      builtAt,
+      days: RECENT_DAYS,
+      crawls: kept.filter((c) => c.crawledAt >= crawlsFrom),
+      skipped: skipped.filter((s) => s.crawledAt >= crawlsFrom),
+      items: items.parts.filter((p) => p.crawledAt >= partsFrom),
     }),
     'series.json': write('series.json', {
       schemaVersion: SNAPSHOT_SCHEMA, builtAt,

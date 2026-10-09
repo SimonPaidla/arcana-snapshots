@@ -1,0 +1,10 @@
+# Every file is the maintainer's: with "Require review from Code Owners" in
+# the ruleset on main, a pull request that touches one needs the
+# maintainer's review. The last matching line wins; a path without an
+# owner has none, so what contributions add - the crawls, the parts of
+# items and the game data, which scripts/check-pr.js judges - merges
+# without a review once `validate` passes.
+*            @SimonPaidla
+/snapshots/
+/items/
+/gamedata/

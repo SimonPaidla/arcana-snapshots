@@ -2,13 +2,21 @@
 # Commits a build of the game data to its branch and pushes it, when a file
 # of it - meta.json included - differs from the published one. Judges the
 # build first with validate-gamedata.js, against the counts of the
-# published build; one that does not pass is not published. Works in a
-# worktree of the checkout, which carries the checkout's credentials.
-# Starts the branch as an orphan when it does not exist.
+# published build; one that does not pass, or that lacks one of the eight
+# files of a build (the same as scripts/check-pr.js requires), is not
+# published. Works in a worktree of the checkout, which carries the
+# checkout's credentials. Starts the branch as an orphan when it does not
+# exist.
+# In GitHub Actions it publishes only from refs/heads/main.
 #
 # Usage: scripts/publish-gamedata.sh <source-dir> [branch]
 set -euo pipefail
 trap 'echo "publish-gamedata: failed at line $LINENO: $BASH_COMMAND" >&2' ERR
+
+if [ "${GITHUB_ACTIONS:-}" = true ] && [ "${GITHUB_REF:-}" != refs/heads/main ]; then
+  echo "publish-gamedata: runs on ${GITHUB_REF:-no ref}; only main is published." >&2
+  exit 1
+fi
 
 # Absolute, for require() below.
 SOURCE=$(cd "${1:?source directory with the build}" && pwd)
@@ -48,12 +56,14 @@ const read = (dir, name) => {
   try { return JSON.parse(fs.readFileSync(path.join(dir, `${name}.json`), 'utf-8')); } catch { return undefined; }
 };
 const lists = {};
-for (const name of ['cards', 'items', 'mobs', 'drops', 'spawns', 'recipes', 'pets']) {
+const missing = [];
+for (const name of ['cards', 'items', 'mobs', 'drops', 'spawns', 'recipes', 'pets', 'meta']) {
+  if (!fs.existsSync(path.join(source, `${name}.json`))) missing.push(`${name}.json is missing`);
   const list = read(source, name);
-  if (list !== undefined) lists[name] = list;
+  if (list !== undefined && name !== 'meta') lists[name] = list;
 }
 const verdict = check(lists, { previous: read(published, 'meta')?.counts ?? null });
-const errors = [...verdict.errors, ...checkMeta(read(source, 'meta'), lists).errors];
+const errors = [...missing, ...verdict.errors, ...checkMeta(read(source, 'meta'), lists).errors];
 for (const line of verdict.warnings) console.log(`  warning: ${line}`);
 if (errors.length) {
   for (const line of errors) console.error(`  ${line}`);
