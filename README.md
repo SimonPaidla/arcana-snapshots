@@ -20,6 +20,7 @@ every full hour; every Arcana installation reads it.
 | **Crawls of the cards** | `snapshots/` on `main` | every full hour, through an accepted pull request |
 | **Parts of items** | `items/` on `main` | with the crawl of their hour: an item type other than cards, or a list of item IDs |
 | **Game data** | `gamedata/` on `main` (copied to the `gamedata` branch for older installations) | built by hand from the server's own item and monster database and [rAthena](https://github.com/rathena/rathena)'s pre-renewal database for everything else - its renewal database for the cards and items only that knows -, through an accepted pull request; a build holds until the next |
+| **Pictures** | `pictures/` on `main` | each item's icon and image and each mob's picture as the server's control panel shows them, as WebP, through an accepted pull request after a build of the game data |
 
 The archive starts on 24 September 2026 with snapshot schema 5.
 
@@ -31,7 +32,7 @@ GitHub Pages serves these files, rebuilt from the archive by
 | File | Contents |
 |---|---|
 | [`index.json`](https://simonpaidla.github.io/arcana-snapshots/index.json) | every counted crawl with its path, time, card and offer count, and the crawls left out with the reason; under `items`, every part the validator passes, with its path, time, item and offer count |
-| [`recent.json`](https://simonpaidla.github.io/arcana-snapshots/recent.json) | `index.json` restricted to the last 32 days: the crawls within them of the newest crawl, the parts within them of the newest part |
+| [`recent.json`](https://simonpaidla.github.io/arcana-snapshots/recent.json) | `index.json` restricted to the last 32 days: the crawls within them of the newest crawl, the parts within them of the newest part - none dated more than 10 minutes ahead of the build |
 | [`series.json`](https://simonpaidla.github.io/arcana-snapshots/series.json) | every card's min, median, mean, max and count in every counted crawl |
 | [`latest.json`](https://simonpaidla.github.io/arcana-snapshots/latest.json) | the newest counted crawl as stored |
 
@@ -48,10 +49,18 @@ read it there, until they have updated:
 | [`mobs.json`](https://raw.githubusercontent.com/SimonPaidla/arcana-snapshots/main/gamedata/mobs.json) | level, HP, element, race, size, MVP; `renewal: true` for a renewal mob that drops a renewal card; `from: "server"` where these are the server's own |
 | [`drops.json`](https://raw.githubusercontent.com/SimonPaidla/arcana-snapshots/main/gamedata/drops.json) | which mob drops which item - every drop of the pre-renewal mobs, and the renewal cards' drops of the renewal mobs - in percent: a mob the server's database lists with the server's own rate (`source: "server"`), any other at rAthena's base rate (`source: "rathena"`) |
 | [`spawns.json`](https://raw.githubusercontent.com/SimonPaidla/arcana-snapshots/main/gamedata/spawns.json) | how many of a mob stand on a map, and its respawn time in milliseconds |
-| [`meta.json`](https://raw.githubusercontent.com/SimonPaidla/arcana-snapshots/main/gamedata/meta.json) | build time, rAthena commit, what the server's database gave, and the count of each list |
+| [`meta.json`](https://raw.githubusercontent.com/SimonPaidla/arcana-snapshots/main/gamedata/meta.json) | build time, rAthena commit, what the server's database gave, the count of each list, and the sha256 of each list's file |
 
-Arcana reads `index.json`, the crawls and parts it lacks, and the game
-data. `meta.json` on `main` names the store and its schemas:
+The pictures lie in `pictures/` on `main`, behind the same check:
+
+| File | Contents |
+|---|---|
+| [`meta.json`](https://raw.githubusercontent.com/SimonPaidla/arcana-snapshots/main/pictures/meta.json) | when the set was made, the version of the processing that made it, the count of icons, images, mobs, images on a tile, pictures and packs, and the sha256 and length of `index.json` |
+| `index.json` | every picture once - `[pack, offset, length, width, height, flags]`, flag 1 an item image kept on its white backdrop and shown on a light tile -, the packs by name and length, and which item id shows which icon (`icon`) and image (`image`), which mob id which picture (`mob`), and the icon and image every card shows (`card`) |
+| `packs/<sha256>.pack` | WebP pictures end to end, named after the sha256 of their bytes; a pack is added and never changed, and deleted once the index no longer names it |
+
+Arcana reads `index.json`, the crawls and parts it lacks, the game
+data, and the pictures. `meta.json` on `main` names the store and its schemas:
 `schemaVersion` for the crawls of the cards, `itemSchemaVersion` for the
 parts of items.
 
@@ -89,17 +98,28 @@ IDs, ascending, in decimal, joined by `,`.
 `pets` and `meta`, each `.json` - added or modified, `meta.json` among
 them; the build that results holds all eight.
 
+**A set of pictures** comes on its own too: `pictures/meta.json` and
+`pictures/index.json` added or modified, `meta.json` among them, packs
+under `pictures/packs/` added, and deleted where the index no longer
+names them.
+
 ## The check
 
 `.github/workflows/pull-request.yml` judges every pull request into
-`main` - when it is opened, pushed to, reopened or edited (a changed
-base); its job `validate` is the check the ruleset on `main` requires,
-from GitHub Actions, and auto-merge merges a pull request once it passes.
-A check is matched by its name, so `validate` from another workflow
-would count too: the ruleset also requires a code owner's review, and
-`.github/CODEOWNERS` gives every file but `snapshots/`, `items/` and
-`gamedata/` to the maintainer - a pull request that touches a workflow,
-a script or anything else waits for the maintainer.
+`main` - when it is opened, pushed to, reopened or edited (its title,
+body or base); its job `validate` is the check the ruleset on `main`
+requires, from GitHub Actions, and auto-merge merges a pull request once
+it passes. The ruleset also requires a code owner's review, and
+`.github/CODEOWNERS` gives every file but `snapshots/`, `items/`,
+`gamedata/` and `pictures/` to the maintainer - a pull request that
+touches a workflow, a script or anything else waits for the maintainer.
+
+A check is matched by its name and its source, and every workflow that
+runs here runs as GitHub Actions - one a contributor pushes on a branch
+of their own as well, which runs without a pull request or a review. The
+code owner's review keeps such a workflow off `main`, not from running:
+that a passing `validate` is this workflow's judgement rests on who may
+write to this repository, the contributors the maintainer grants access.
 
 - It runs on `pull_request_target`: the workflow and `scripts/` are
   `main`'s, the pull request's commits are fetched as data, and nothing
@@ -115,9 +135,10 @@ a script or anything else waits for the maintainer.
   their text escaped as GitHub reads workflow commands.
 
 Refused:
-- a modified, deleted or renamed file outside a build of the game data, and any path other than `snapshots/<time>.json`, `items/type-<id>/<time>.json`, `items/ids/<time>-<list>.json` and the files of `gamedata/` - `.github/` and `scripts/` included;
+- a modified, deleted or renamed file outside a build of the game data or a set of pictures, and any path other than `snapshots/<time>.json`, `items/type-<id>/<time>.json`, `items/ids/<time>-<list>.json`, the files of `gamedata/` and those of `pictures/` - `.github/` and `scripts/` included;
 - more than 32 files; files of more than one crawl time; more than one list of item IDs, or a list that would make more than four of one crawl time;
-- a build of the game data beside any other file, one that deletes a file of it or leaves `meta.json` as it was, one that lacks one of its eight files, one `scripts/validate-gamedata.js` refuses against the counts of the build it replaces (the one on `main`, else the copy on `gamedata`), one built more than a day ahead of now, and one built before the build it replaces - whose build time, if it lies in the future, does not count;
+- a build of the game data beside any other file, one that deletes a file of it or leaves `meta.json` as it was, one that lacks one of its eight files, one whose list is not the file `meta.json` names by sha256, one `scripts/validate-gamedata.js` refuses against the counts of the build it replaces (the one on `main`, else the copy on `gamedata`), one built more than a day ahead of now, and one built before the build it replaces - whose build time, if it lies in the future, does not count;
+- a set of pictures beside any other file, one that changes a pack or leaves `meta.json` as it was, one whose `index.json` is not the one `meta.json` gives by sha256 and length, one `scripts/validate-pictures.js` refuses against the counts of the set it replaces, one missing a pack its index names or holding one it does not, a pack whose sha256 is not its name or whose pictures are not the index's, and one made more than a day ahead of now or before the set it replaces;
 - a symbolic link, an executable file, a submodule, and a file above 16 MB;
 - under `snapshots/`, a file that is not snapshot schema 5 or whose name is not its crawl time;
 - under `items/`, a file that is not item schema 1, a part of cards or of a type outside the market's item types, or one whose path is not the one its scope and crawl time name;
@@ -167,12 +188,33 @@ item and materials and every pet's egg is an item, every item has one of
 the market's item types; enough cards drop, mobs spawn, card effects read
 as text and items have an NPC shop price; every drop rate from `server`
 or `rathena`; a `meta.json` of its own fields, built no more than a day
-ahead, whose counts are its lists' lengths. A drop marked `mvp: true` is
+ahead, whose counts are its lists' lengths and whose `sha256`, where it
+gives them, are the digests of its lists' files. A drop marked `mvp: true` is
 one of the rewards an MVP's killer gets, one per kill at most.
 Arcana multiplies rAthena's base rates by the server's factor, one of its
 settings, and takes the server's own rates as they are.
 
 Arcana takes a build only when `checkGameData()` accepts it.
+
+## Pictures
+
+A set is made by Arcana Crawler after a build of the game data: each
+item's icon and image and each mob's picture as the server's control
+panel shows them - the items and mobs of the server's own database, the
+items only rAthena knows once they appeared in the market, and for every
+card one icon and one image. Icons and mobs are kept as they are, as
+lossless WebP; an item image loses its white backdrop, as lossy WebP with
+alpha, unless it is so pale that it keeps it and is shown on a light tile.
+A run adds its new pictures as a new pack; small packs are joined, and
+all of them written anew once a quarter of their bytes is unused.
+`scripts/validate-pictures.js` has to accept a set: icons, images and
+mobs above their floors and at 90 % or more of the set before; every
+picture a still WebP in its pack, overlapping no other, within the
+bounds of its kind (an icon 32×32 and 8 KB at most, an image 160×160 and
+48 KB, a mob 400×400 and 128 KB), on a tile only as an item image; every
+picture and pack in use, at most 20 packs of 12 MB, 64 MB together, no
+more than half of it unused; a `meta.json` of its own fields, made no
+more than a day ahead, whose counts are the index's.
 
 **The `gamedata` branch** holds a copy of the build on `main` for
 installations that read it there, until they have updated. Once a build
@@ -187,9 +229,12 @@ installation reads the branch, the workflow goes.
 The ruleset on `main` stays active. Its bypass list holds the maintainer
 alone (*Always*): a push of theirs to `main` passes it, while every open
 pull request - one with auto-merge included - still needs `validate` and,
-outside `snapshots/`, `items/` and `gamedata/`, the maintainer's review.
-The ruleset is never disabled. Merges are squashed, and a pull request's
-branch is deleted once it is merged.
+outside `snapshots/`, `items/`, `gamedata/` and `pictures/`, the
+maintainer's review.
+The ruleset is never disabled. Merges are squashed. A merged pull
+request's branch is deleted only while *Automatically delete head
+branches* (Settings → General → Pull Requests) is on, a setting the
+maintainer turns on.
 
 The game data workflow also starts by hand from the Actions tab, from
 `main`: it copies the build on `main` to the `gamedata` branch again. Run
@@ -197,18 +242,19 @@ from any other branch it stops at its first step.
 
 ## Copied code
 
-Two files under `scripts/` are generated by `npm run store-copies` in the
-app's repository and carry a banner saying so; they are edited there:
+Three files under `scripts/` are generated by `npm run store-copies` in
+the app's repository and carry a banner saying so; they are edited there:
 
 | Copy | Source |
 |---|---|
 | `scripts/validate.js` | `common/snapshot.ts` |
 | `scripts/validate-gamedata.js` | `common/gamedata.ts` |
+| `scripts/validate-pictures.js` | `common/pictures.ts` |
 
 The maintainer commits the copies and pushes them to `main` directly: a
 pull request that touches `scripts/` is refused. The app's tests fail
 while a checkout of this repository beside it holds stale copies, and run
-`check-pr.js` and `publish-gamedata.sh` with fresh ones.
+`check-pr.js`, `build-index.js` and `publish-gamedata.sh` with fresh ones.
 
 A change to a schema lands here first; the crawler that writes it is
 released right after. `assets/` holds the app's logo.
@@ -220,11 +266,12 @@ snapshots/            one file per crawl of the cards, added and never changed
 items/                one file per part of items - type-<id>/, ids/ - added and never changed
 scripts/              validation, the pull request check, the index build, the game data's copy
 .github/workflows/    the three workflows below
-.github/CODEOWNERS    every file the maintainer's, but snapshots/, items/ and gamedata/
+.github/CODEOWNERS    every file the maintainer's, but snapshots/, items/, gamedata/ and pictures/
 assets/               the logo
 meta.json             the store's name and schema versions
 build/                the index build's output; not committed
 gamedata/             the newest build of the game data, through accepted pull requests
+pictures/             the newest set of pictures, through accepted pull requests
 ```
 
 | Workflow | When | What it does |
@@ -235,6 +282,7 @@ gamedata/             the newest build of the game data, through accepted pull r
 
 | Branch | What is on it | Who writes it |
 |---|---|---|
-| `main` | the archive, the game data's newest build, the scripts, the workflows | contributors, through accepted pull requests; the maintainer |
+| `main` | the archive, the game data's newest build, the newest set of pictures, the scripts, the workflows | contributors, through accepted pull requests; the maintainer |
 | `gamedata` | a copy of the build on `main`: seven lists and their `meta.json` | the game data workflow |
-| `crawl/…` | an offered crawl, the head of its pull request, deleted once merged | Arcana Crawler |
+| `crawl/…` | an offered crawl, the head of its pull request; deleted after the merge while *Automatically delete head branches* is on | Arcana Crawler |
+| `game-data/…`, `pictures/…` | an offered build of the game data or set of pictures, the head of its pull request; deleted after the merge as a crawl's | Arcana Crawler |

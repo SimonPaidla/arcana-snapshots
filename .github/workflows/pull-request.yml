@@ -1,16 +1,17 @@
 # Judges a pull request into main; its job `validate` is the check the
-# ruleset on main requires, pinned to GitHub Actions as its source. A check
-# of that name from any other workflow - one a branch of this repository
-# brings along - is no judgement: the ruleset also requires a code owner's
-# review for everything outside snapshots/, items/ and gamedata/
-# (.github/CODEOWNERS).
+# ruleset on main requires, pinned to GitHub Actions as its source. A
+# workflow a branch of this repository brings along runs as GitHub Actions
+# too and can report a check of that name: the code owner's review the
+# ruleset requires for everything outside snapshots/, items/, gamedata/
+# and pictures/ (.github/CODEOWNERS) keeps such a workflow off main, not
+# from running, so the check rests on who has write access.
 #
 # Runs on pull_request_target: the workflow and scripts/ are main's, the
 # pull request's commits are fetched as data, and nothing of the pull
 # request is executed. scripts/check-pr.js reads its files with git and
-# accepts new files of one crawl time under snapshots/ and items/, or a
-# build of the game data under gamedata/ on its own. `edited` judges a
-# pull request again when its base branch changes.
+# accepts new files of one crawl time under snapshots/ and items/, a
+# build of the game data under gamedata/ on its own, or a set of pictures
+# under pictures/ on its own. `edited`: its title, body or base changed.
 #
 # Fetched: main with its history (the merge base and the archive), the pull
 # request's head, and the newest commit of the gamedata branch - no other

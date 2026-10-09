@@ -22,13 +22,26 @@
  * head commit - its changed files and those it keeps, every one of
  * GAME_DATA_FILES - has to pass `check()` of `validate-gamedata.js`
  * against the counts of the build it replaces (the target branch's, else
- * the published one at PUBLISHED_REF), `checkMeta()` against its lists, be
- * built no more than BUILD_SKEW_MS ahead of now and after the build it
- * replaces - a build time of that build in the future does not count.
+ * the published one at PUBLISHED_REF), `checkMeta()` against its lists and
+ * the sha256 of their files - a build time no more than a day ahead of now
+ * among it, each list's digest where meta.json gives them -, and be built
+ * after the build it replaces - a build time of that build more than
+ * BUILD_SKEW_MS ahead does not count.
+ *
+ * Or a set of pictures, on its own: pictures/meta.json and
+ * pictures/index.json added or modified, meta.json among them, packs
+ * under pictures/packs/ added, and deleted where the set no longer names
+ * them. The set at the head commit has to pass `checkMeta()` - a set time
+ * no more than a day ahead of now among it - and `checkIndex()` of
+ * `validate-pictures.js` - the index against meta.json and the counts of
+ * the set it replaces, its digest and length the ones meta.json gives -,
+ * every pack the index names `checkPack()` against its sha256, no other
+ * file lie under pictures/packs/, and the set be made after the set it
+ * replaces.
  *
  * Everything else is refused: a modified, deleted or renamed file outside
- * a build, another path, a symbolic link, an executable file, a submodule,
- * a file above MAX_FILE_BYTES, a file the validator throws on.
+ * a build or a set, another path, a symbolic link, an executable file, a
+ * submodule, a file above MAX_FILE_BYTES, a file the validator throws on.
  *
  * Every line it prints is one line of text: a control character a
  * contribution names is printed as \uXXXX, and the workflow commands
@@ -41,11 +54,15 @@
  */
 
 const { execFileSync } = require('child_process');
+const { createHash } = require('crypto');
 const {
   validateSnapshot, knownOf, cardCountOf, validateItemSnapshot, itemCountOf, isItemPath, STORE_MAX_AGE_DAYS,
   crawledAtOf, crawledAtOfItemPath,
 } = require('./validate.js');
 const { check: checkGameData, checkMeta: checkGameDataMeta, GAME_DATA_CLOCK_SKEW_MS } = require('./validate-gamedata.js');
+const {
+  checkMeta: checkPicturesMeta, checkIndex: checkPictureIndex, checkPack, isPackName, packFileOf, PICTURES_DIR,
+} = require('./validate-pictures.js');
 
 /** The files of a build of the game data; every build carries all of them. */
 const GAME_DATA_FILES = ['cards', 'items', 'mobs', 'drops', 'spawns', 'recipes', 'pets', 'meta'];
@@ -116,25 +133,44 @@ function comparison(base, files, read) {
   return known.sort((a, b) => String(a.crawledAt).localeCompare(String(b.crawledAt)));
 }
 
+/** Whether a file of the head commit is a regular file of at most MAX_FILE_BYTES; a complaint where not. */
+function regularFile(head, file) {
+  const [mode, type] = git('ls-tree', head, '--', file).split(/\s+/);
+  if (mode !== REGULAR_FILE || type !== 'blob') {
+    complain(`\`${file}\`: not a regular file without the executable bit (mode ${mode}).`);
+    return false;
+  }
+  const size = Number(git('cat-file', '-s', `${head}:${file}`));
+  if (size > MAX_FILE_BYTES) {
+    complain(`\`${file}\`: ${size} bytes, above the limit of ${MAX_FILE_BYTES}.`);
+    return false;
+  }
+  return true;
+}
+
 /** A file of the head commit as JSON: a regular file of at most MAX_FILE_BYTES, else a complaint and null. */
 function readJson(head, file) {
   try {
-    const [mode, type] = git('ls-tree', head, '--', file).split(/\s+/);
-    if (mode !== REGULAR_FILE || type !== 'blob') {
-      complain(`\`${file}\`: not a regular file without the executable bit (mode ${mode}).`);
-      return null;
-    }
-    const size = Number(git('cat-file', '-s', `${head}:${file}`));
-    if (size > MAX_FILE_BYTES) {
-      complain(`\`${file}\`: ${size} bytes, above the limit of ${MAX_FILE_BYTES}.`);
-      return null;
-    }
+    if (!regularFile(head, file)) return null;
     return { data: JSON.parse(git('show', `${head}:${file}`)) };
   } catch (err) {
     complain(`\`${file}\`: not readable JSON (${err.message.split('\n')[0]}).`);
     return null;
   }
 }
+
+/** A file of the head commit as bytes: a regular file of at most MAX_FILE_BYTES, else a complaint and null. */
+function readBytes(head, file) {
+  try {
+    if (!regularFile(head, file)) return null;
+    return execFileSync('git', ['cat-file', 'blob', `${head}:${file}`], { maxBuffer: 2 * MAX_FILE_BYTES });
+  } catch (err) {
+    complain(`\`${file}\`: not readable (${err.message.split('\n')[0]}).`);
+    return null;
+  }
+}
+
+const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 
 /** A validator's verdict; one that throws is a refusal. */
 function validated(file, validate) {
@@ -170,6 +206,7 @@ function main() {
     return report();
   }
   if (changed.some(({ file }) => file.startsWith(GAME_DATA_DIR))) return gameDataBuild(base, head, changed);
+  if (changed.some(({ file }) => file.startsWith(PICTURES_DIR))) return picturesSet(base, head, changed);
 
   // Additions only, each a crawl or a part.
   const crawls = [];
@@ -265,8 +302,9 @@ function holds(head, file) {
  * gamedata/, added or modified, meta.json among them. The build at the
  * head commit is judged as a whole: every file of GAME_DATA_FILES there,
  * `check()` against the counts of the build it replaces, `checkMeta()`
- * against its lists, and its build time no more than BUILD_SKEW_MS ahead
- * of now and after that of the build it replaces.
+ * against its lists and the sha256 of each list's bytes - its build time
+ * no more than a day ahead of now -, and its build time after that of the
+ * build it replaces.
  */
 function gameDataBuild(base, head, changed) {
   for (const { status, file } of changed) {
@@ -284,6 +322,8 @@ function gameDataBuild(base, head, changed) {
   if (problems.length) return report();
 
   const lists = {};
+  /** The sha256 of each list's bytes, for checkMeta(). */
+  const digests = {};
   let meta = null;
   for (const name of GAME_DATA_FILES) {
     const file = `${GAME_DATA_DIR}${name}.json`;
@@ -291,10 +331,21 @@ function gameDataBuild(base, head, changed) {
       complain(`\`${file}\` is missing: a build carries ${GAME_DATA_FILES.map((n) => `${n}.json`).join(', ')}.`);
       continue;
     }
-    const read = readJson(head, file);
-    if (!read) continue;
-    if (name === 'meta') meta = read.data;
-    else lists[name] = read.data;
+    const bytes = readBytes(head, file);
+    if (!bytes) continue;
+    let data;
+    try {
+      data = JSON.parse(bytes.toString('utf-8'));
+    } catch (err) {
+      complain(`\`${file}\`: not readable JSON (${err.message.split('\n')[0]}).`);
+      continue;
+    }
+    if (name === 'meta') {
+      meta = data;
+    } else {
+      lists[name] = data;
+      digests[name] = sha256(bytes);
+    }
   }
   if (problems.length) return report();
 
@@ -309,16 +360,91 @@ function gameDataBuild(base, head, changed) {
 
   const fine = [
     judged(GAME_DATA_DIR, validated(GAME_DATA_DIR, () => checkGameData(lists, { previous }))),
-    judged(`${GAME_DATA_DIR}meta.json`, validated(`${GAME_DATA_DIR}meta.json`, () => ({ warnings: [], ...checkGameDataMeta(meta, lists, { now }) }))),
+    judged(`${GAME_DATA_DIR}meta.json`, validated(`${GAME_DATA_DIR}meta.json`, () => ({ warnings: [], ...checkGameDataMeta(meta, lists, { now, sha256: digests }) }))),
   ].every(Boolean);
-  if (fine && Date.parse(meta.builtAt) > now + BUILD_SKEW_MS) {
-    complain(`\`${GAME_DATA_DIR}meta.json\`: built at ${meta.builtAt}, more than ${BUILD_SKEW_MS / 3_600_000} hours ahead of now.`);
-  } else if (fine && !(String(meta.builtAt) > builtBefore)) {
+  // checkMeta() refuses a build time more than GAME_DATA_CLOCK_SKEW_MS ahead of now.
+  if (fine && !(String(meta.builtAt) > builtBefore)) {
     complain(`\`${GAME_DATA_DIR}meta.json\`: built at ${meta.builtAt}, not after the build it replaces (${builtBefore}).`);
   }
   if (fine) {
     say(`  ${GAME_DATA_DIR}: ${Object.entries(lists).map(([k, v]) => `${v.length} ${k}`).join(', ')}`
       + (previous ? ' - against the counts of the build it replaces' : ' - no build to compare with'));
+  }
+  return report(changed.length);
+}
+
+/**
+ * A set of pictures: nothing but pictures/meta.json and pictures/index.json,
+ * added or modified, meta.json among them, and packs under pictures/packs/,
+ * added or deleted. The set at the head commit is judged as a whole:
+ * `checkMeta()` - its time no more than a day ahead of now -, the index's
+ * digest and length against meta.json, `checkIndex()` against meta.json
+ * and the counts of the set it replaces, `checkPack()` of every pack the
+ * index names against its sha256, no other file under pictures/packs/, and
+ * its time after that of the set it replaces.
+ */
+function picturesSet(base, head, changed) {
+  const META = `${PICTURES_DIR}meta.json`;
+  const INDEX = `${PICTURES_DIR}index.json`;
+  const PACKS = `${PICTURES_DIR}packs/`;
+  for (const { status, file } of changed) {
+    const pack = file.startsWith(PACKS) && file.endsWith('.pack') ? file.slice(PACKS.length, -'.pack'.length) : null;
+    if (file === META || file === INDEX) {
+      if (status !== 'A' && status !== 'M') complain(`\`${file}\`: ${status === 'D' ? 'is deleted' : `has status ${status}`}. A set of pictures adds or modifies it.`);
+    } else if (pack !== null && isPackName(pack)) {
+      if (status !== 'A' && status !== 'D') complain(`\`${file}\`: ${status === 'M' ? 'is modified' : `has status ${status}`}. A pack is added or deleted, never changed.`);
+    } else {
+      complain(`\`${file}\`: a set of pictures changes nothing but \`${META}\`, \`${INDEX}\` and packs \`${PACKS}<sha256>.pack\`.`);
+    }
+  }
+  if (!changed.some(({ file }) => file === META)) complain(`\`${META}\` is unchanged: every set carries its own.`);
+  if (problems.length) return report();
+
+  const meta = readJson(head, META);
+  const indexBytes = readBytes(head, INDEX);
+  if (!meta || !indexBytes) return report();
+  let index = null;
+  try {
+    index = JSON.parse(indexBytes.toString('utf-8'));
+  } catch (err) {
+    complain(`\`${INDEX}\`: not readable JSON (${err.message.split('\n')[0]}).`);
+    return report();
+  }
+
+  // The set it replaces: the one on the target branch.
+  const now = Date.now();
+  const before = jsonAt(base, META);
+  const previous = before && typeof before === 'object' && before.counts && typeof before.counts === 'object' ? before.counts : null;
+  const builtBefore = before && !(Date.parse(String(before.builtAt)) > now + BUILD_SKEW_MS) ? String(before.builtAt ?? '') : '';
+
+  if (!judged(META, validated(META, () => ({ warnings: [], ...checkPicturesMeta(meta.data, { now }) })))) return report();
+  if (sha256(indexBytes) !== meta.data.index.sha256 || indexBytes.length !== meta.data.index.bytes) {
+    complain(`\`${INDEX}\`: ${indexBytes.length} bytes of the digest ${sha256(indexBytes)}, not those \`${META}\` gives.`);
+    return report();
+  }
+  if (!judged(INDEX, validated(INDEX, () => checkPictureIndex(index, { meta: meta.data, previous })))) return report();
+
+  const held = new Set(git('ls-tree', '-r', '-z', '--name-only', head, '--', PACKS).split('\0').filter(Boolean));
+  for (const [n, { name }] of index.packs.entries()) {
+    const file = `${PICTURES_DIR}${packFileOf(name)}`;
+    held.delete(file);
+    if (!holds(head, file)) {
+      complain(`\`${file}\` is missing: the index names it.`);
+      continue;
+    }
+    const bytes = readBytes(head, file);
+    if (bytes) judged(file, validated(file, () => ({ warnings: [], ...checkPack(bytes, sha256(bytes), index, n) })));
+  }
+  for (const file of held) complain(`\`${file}\`: a pack the index does not name.`);
+  if (problems.length) return report();
+
+  // checkMeta() refuses a set time more than PICTURES_CLOCK_SKEW_MS ahead of now.
+  if (!(String(meta.data.builtAt) > builtBefore)) {
+    complain(`\`${META}\`: made at ${meta.data.builtAt}, not after the set it replaces (${builtBefore}).`);
+  } else {
+    const { icon, image, mob, packs } = meta.data.counts;
+    say(`  ${PICTURES_DIR}: ${icon} icons, ${image} images, ${mob} mobs in ${packs} packs`
+      + (previous ? ' - against the counts of the set it replaces' : ' - no set to compare with'));
   }
   return report(changed.length);
 }

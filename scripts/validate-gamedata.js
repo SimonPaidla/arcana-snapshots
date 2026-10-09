@@ -288,10 +288,12 @@ function checkGameData(data, { previous = null } = {}) {
   };
 }
 const isoTime = (v) => typeof v === "string" && !Number.isNaN(Date.parse(v)) && new Date(v).toISOString() === v;
-const META_FIELDS = ["builtAt", "tookMs", "rathena", "server", "counts"];
+const META_FIELDS = ["builtAt", "tookMs", "rathena", "server", "counts", "sha256"];
 const RATHENA_FIELDS = ["sha", "committedAt"];
 const SERVER_FIELDS = ["readAt", "items", "mobs", "drops"];
-function checkGameDataMeta(meta, data, { now = Date.now() } = {}) {
+const sha256Hex = (v) => typeof v === "string" && /^[0-9a-f]{64}$/.test(v);
+const shortDigest = (v) => `${String(v).slice(0, 12)}\u2026`;
+function checkGameDataMeta(meta, data, { now = Date.now(), sha256 = {} } = {}) {
   const errors = [];
   const m = meta;
   if (!m || typeof m !== "object" || Array.isArray(m)) return { ok: false, errors: ["meta.json: not an object"] };
@@ -313,11 +315,25 @@ function checkGameDataMeta(meta, data, { now = Date.now() } = {}) {
   if (m.counts !== void 0 && !(only(m.counts, keys) && Object.values(m.counts).every(count))) {
     errors.push(`meta.json: counts holds something other than counts of ${keys.join(", ")}`);
   }
+  const digestsSound = only(m.sha256, keys) && Object.values(m.sha256).every(sha256Hex);
+  if (m.sha256 !== void 0 && !digestsSound) {
+    errors.push(`meta.json: sha256 holds something other than digests of 64 hex digits of ${keys.join(", ")}`);
+  }
   const counts = m.counts ?? {};
+  const digests = digestsSound ? m.sha256 : null;
   for (const key of [...GAME_DATA_KEYS, ...OPTIONAL_GAME_DATA_KEYS]) {
     const list = data[key];
-    if (Array.isArray(list) && counts[key] !== list.length) {
+    if (!Array.isArray(list)) continue;
+    if (counts[key] !== list.length) {
       errors.push(`meta.json: counts.${key} is ${String(counts[key])}, the list holds ${list.length}`);
+    }
+    if (!digests) continue;
+    if (digests[key] === void 0) {
+      errors.push(`meta.json: sha256 has no digest of ${key}, the build carries the list`);
+    } else if (sha256[key] === void 0) {
+      errors.push(`meta.json: sha256.${key} is not checked: the digest of ${key}.json was not given`);
+    } else if (digests[key] !== sha256[key]) {
+      errors.push(`meta.json: sha256.${key} is ${shortDigest(digests[key])}, ${key}.json has ${shortDigest(sha256[key])}`);
     }
   }
   return { ok: errors.length === 0, errors };

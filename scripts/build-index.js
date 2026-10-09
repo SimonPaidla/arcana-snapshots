@@ -8,7 +8,8 @@
  *                (path, time, item and offer count, bytes, schema)
  *   recent.json  index.json restricted to the last RECENT_DAYS days: the
  *                crawls within them of its newest crawl, the parts within
- *                them of its newest part
+ *                them of its newest part - none dated more than the
+ *                validator's CLOCK_SKEW_MS ahead of the build
  *   series.json  every card's min, median, mean, max and count per counted crawl
  *   latest.json  the newest counted crawl as stored
  *
@@ -21,7 +22,7 @@ const fs = require('fs');
 const path = require('path');
 const {
   byCard, cardCountOf, dedupeSnapshots, fingerprintOf, isSnapshotShape, MIN_GAP_MS, SNAPSHOT_SCHEMA,
-  isItemPath, itemCountOf, validateItemSnapshot, ITEM_SNAPSHOT_SCHEMA,
+  isItemPath, itemCountOf, validateItemSnapshot, ITEM_SNAPSHOT_SCHEMA, CLOCK_SKEW_MS,
 } = require('./validate.js');
 
 const ROOT = path.join(__dirname, '..');
@@ -92,6 +93,16 @@ function recentFrom(list) {
   return newest ? new Date(Date.parse(newest) - RECENT_DAYS * DAY_MS).toISOString() : '';
 }
 
+/** Whether an entry is dated no more than CLOCK_SKEW_MS after `now`. */
+const notAhead = (entry, now) => !(Date.parse(entry.crawledAt) > now + CLOCK_SKEW_MS);
+
+/** The entries of `list` within RECENT_DAYS of its newest, none dated more than CLOCK_SKEW_MS after `now`. */
+function recentOf(list, now) {
+  const present = list.filter((e) => notAhead(e, now));
+  const from = recentFrom(present);
+  return { entries: present.filter((e) => e.crawledAt >= from), ahead: list.length - present.length, from };
+}
+
 function main() {
   const files = allFiles();
   const crawls = [];
@@ -156,15 +167,21 @@ function main() {
   if (items.skipped) console.log(`  ${items.skipped} part(s) refused by the validator of item schema ${ITEM_SNAPSHOT_SCHEMA}, not listed`);
 
   fs.mkdirSync(TARGET, { recursive: true });
-  const builtAt = new Date().toISOString();
+  const now = Date.now();
+  const builtAt = new Date(now).toISOString();
   const write = (name, content) => {
     const file = path.join(TARGET, name);
     fs.writeFileSync(file, JSON.stringify(content), 'utf-8');
     return fs.statSync(file).size;
   };
 
-  const crawlsFrom = recentFrom(kept);
-  const partsFrom = recentFrom(items.parts);
+  const recentCrawls = recentOf(kept, now);
+  const recentParts = recentOf(items.parts, now);
+  const recentSkipped = skipped.filter((s) => notAhead(s, now) && s.crawledAt >= recentCrawls.from);
+  if (recentCrawls.ahead || recentParts.ahead) {
+    console.log(`  ${recentCrawls.ahead} crawl(s) and ${recentParts.ahead} part(s) dated more than `
+      + `${CLOCK_SKEW_MS / 60000} minutes ahead of now, not in recent.json`);
+  }
   const sizes = {
     // The counted crawls, the crawls left out with the reason, every part.
     'index.json': write('index.json', {
@@ -175,9 +192,9 @@ function main() {
       itemSchemaVersion: ITEM_SNAPSHOT_SCHEMA,
       builtAt,
       days: RECENT_DAYS,
-      crawls: kept.filter((c) => c.crawledAt >= crawlsFrom),
-      skipped: skipped.filter((s) => s.crawledAt >= crawlsFrom),
-      items: items.parts.filter((p) => p.crawledAt >= partsFrom),
+      crawls: recentCrawls.entries,
+      skipped: recentSkipped,
+      items: recentParts.entries,
     }),
     'series.json': write('series.json', {
       schemaVersion: SNAPSHOT_SCHEMA, builtAt,

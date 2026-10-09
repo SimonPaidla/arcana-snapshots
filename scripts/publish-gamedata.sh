@@ -2,11 +2,13 @@
 # Commits a build of the game data to its branch and pushes it, when a file
 # of it - meta.json included - differs from the published one. Judges the
 # build first with validate-gamedata.js, against the counts of the
-# published build; one that does not pass, or that lacks one of the eight
-# files of a build (the same as scripts/check-pr.js requires), is not
-# published. Works in a worktree of the checkout, which carries the
-# checkout's credentials. Starts the branch as an orphan when it does not
-# exist.
+# published build - none where the published meta.json is absent or no
+# JSON - and its meta.json against the lists and the sha256 of their files;
+# one that does not pass, that lacks one of the eight files of a build (the
+# same as scripts/check-pr.js requires) or holds one that is no JSON, is
+# not published. Works in a worktree of the checkout, which
+# carries the checkout's credentials. Starts the branch as an orphan when
+# it does not exist.
 # In GitHub Actions it publishes only from refs/heads/main.
 #
 # Usage: scripts/publish-gamedata.sh <source-dir> [branch]
@@ -48,22 +50,45 @@ fi
 
 # The build, judged against the counts of the published one.
 if ! node - "$ROOT/scripts/validate-gamedata.js" "$SOURCE" "$WORK" <<'JS'
+const { createHash } = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const [validator, source, published] = process.argv.slice(2);
 const { check, checkMeta } = require(validator);
-const read = (dir, name) => {
-  try { return JSON.parse(fs.readFileSync(path.join(dir, `${name}.json`), 'utf-8')); } catch { return undefined; }
+const problems = [];
+/** The sha256 of each file's bytes, for checkMeta(). */
+const digests = {};
+/** A file of the build as JSON; undefined, and a problem, when it is absent or no JSON. */
+const readBuild = (name) => {
+  const file = path.join(source, `${name}.json`);
+  if (!fs.existsSync(file)) {
+    problems.push(`${name}.json is missing`);
+    return undefined;
+  }
+  const bytes = fs.readFileSync(file);
+  digests[name] = createHash('sha256').update(bytes).digest('hex');
+  try {
+    return JSON.parse(bytes.toString('utf-8'));
+  } catch {
+    problems.push(`${name}.json cannot be read as JSON`);
+    return undefined;
+  }
 };
 const lists = {};
-const missing = [];
+let meta;
 for (const name of ['cards', 'items', 'mobs', 'drops', 'spawns', 'recipes', 'pets', 'meta']) {
-  if (!fs.existsSync(path.join(source, `${name}.json`))) missing.push(`${name}.json is missing`);
-  const list = read(source, name);
-  if (list !== undefined && name !== 'meta') lists[name] = list;
+  const data = readBuild(name);
+  if (data === undefined) continue;
+  if (name === 'meta') meta = data;
+  else lists[name] = data;
 }
-const verdict = check(lists, { previous: read(published, 'meta')?.counts ?? null });
-const errors = [...missing, ...verdict.errors, ...checkMeta(read(source, 'meta'), lists).errors];
+// The published build's counts; none without a published meta.json that reads as JSON.
+let previous = null;
+try {
+  previous = JSON.parse(fs.readFileSync(path.join(published, 'meta.json'), 'utf-8'))?.counts ?? null;
+} catch {}
+const verdict = check(lists, { previous });
+const errors = [...problems, ...verdict.errors, ...checkMeta(meta, lists, { sha256: digests }).errors];
 for (const line of verdict.warnings) console.log(`  warning: ${line}`);
 if (errors.length) {
   for (const line of errors) console.error(`  ${line}`);
