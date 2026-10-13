@@ -1,0 +1,8 @@
+{"schemaVersion":1,"crawledAt":"2026-10-13T23:00:00.000Z","complete":true,"scope":{"type":4},"offerCount":22,"names":{"1114":"Scimitar","1127":"Saber","1172":"Claymore","1237":"Grimtooth","1268":"Wild Beast Claw","1309":"Orcish Axe","1422":"Hunting Spear","1471":"Hellfire","1483":"Ivory Lance","1550":"Book","1613":"Mighty Staff","1618":"Survivor's Rod","1622":"Hypnotist's Staff","1631":"Holy Stick","1643":"Dead Tree Cane","1825":"Horn of Hillslion","1980":"Whip of Balance","13103":"Crimson Bolt","13404":"Platinum Shotel"},"shops":[
+["BulkMerchie3","Forbidden Grimoire","alberta",31,240,[[1422,2997998,1,7,[]]]],
+["MercatinoUsato3","Random weapons ig","alberta",32,240,[[1237,498888,1],[1422,2997999,1,7,[]],[1471,999998,1,7,[]],[1483,499999,1,7,[]],[1550,279999,1],[1613,1499999,1,7,[]],[1618,999988,1,7,[]],[1622,899999,1,8,[]],[1631,7499998,1,7,[]]]],
+["MercatinoUsato4","DOLLS :3","alberta",47,228,[[1114,2000000,1,10,[]],[1268,1000000,1,7,[]],[1622,349999,1,7,[]],[1643,666665,1],[1980,288888,1,7,[]],[13103,500000,1,8,[]]]],
+["MercatinoUsato5","Have a nice day! =^. .^=","alberta",43,228,[[1268,1000000,1,7,[]]]],
+["Porcil","SELLING","prt_mk",292,91,[[1127,100000,1],[1172,25000000,1,9,[]],[1309,60000000,1,9,[4115,4115,4115,4115]],[13404,3500000,1,7,[4281]]]],
+["pgmmonney","=)","alberta",40,228,[[1825,50000,1]]]
+]}

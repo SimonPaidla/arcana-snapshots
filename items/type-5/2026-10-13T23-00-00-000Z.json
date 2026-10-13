@@ -1,0 +1,8 @@
+{"schemaVersion":1,"crawledAt":"2026-10-13T23:00:00.000Z","complete":true,"scope":{"type":5},"offerCount":11,"names":{"2270":"Romantic Leaf","2315":"Chain Mail","2317":"Full Plate","2342":"Legion Plate Armor","2545":"Musika","2601":"Ring","2607":"Clip","2745":"Pinguicula Corsage","2748":"Cursed Star","5811":"Santa's Beard","28984":"Forbidden Grimoire"},"shops":[
+["BulkMerchie3","Forbidden Grimoire","alberta",31,240,[[2607,250000,1],[28984,8000000,1]]],
+["Inran Weaponary","Flock Camera II","alberta",39,228,[[2342,2000000,1,0,[4732]],[2601,500000,1],[2748,9000000,1]]],
+["MercatinoUsato3","Random weapons ig","alberta",32,240,[[2745,250000,1]]],
+["MercatinoUsato4","DOLLS :3","alberta",47,228,[[2545,1888886,1],[5811,349998,1]]],
+["Porcil","SELLING","prt_mk",292,91,[[2315,800000,1,0,[4741]],[2317,40000000,1,7,[4712]]]],
+["pgmmonney","=)","alberta",40,228,[[2270,50000,1]]]
+]}
