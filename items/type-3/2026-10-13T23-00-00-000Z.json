@@ -1,0 +1,10 @@
+{"schemaVersion":1,"crawledAt":"2026-10-13T23:00:00.000Z","complete":true,"scope":{"type":3},"offerCount":21,"names":{"720":"Aquamarine","907":"Resin","924":"Powder of Butterfly","953":"Stone Heart","957":"Decayed Nail","984":"Oridecon","985":"Elunium","1002":"Iron Ore","1021":"Dokebi Horn","1024":"Squid Ink","1027":"Porcupine Quill","1055":"Earthworm Peeling","7119":"Bacillus","7126":"Large Jellopy","7198":"Huge Leaf","7277":"Munak Doll","7292":"Muscovite"},"shops":[
+["BulkMerchie","Enjoy!","alberta",44,228,[[720,39999,7],[7119,714,408]]],
+["BulkMerchie2","Enjoy!","alberta",41,228,[[907,5000,38],[7198,412,116]]],
+["MercatinoUsato","Have a nice day!","alberta",33,240,[[924,498,1341],[953,522,295],[1021,1394,2518],[1027,1000,100],[1055,994,478],[7277,5864,1]]],
+["MercatinoUsato2","Enjoy!","prt_mk",178,166,[[1002,6554,40],[1021,1398,615],[7126,5000,45]]],
+["MercatinoUsato4","DOLLS :3","alberta",47,228,[[957,3598,24],[7292,18999,10]]],
+["MercatinoUsato5","Have a nice day! =^. .^=","alberta",43,228,[[1024,398,138],[1055,1014,793]]],
+["MerchantGirl","12323","payon",151,162,[[984,500000,178],[985,500000,123]]],
+["girlitlog","123","payon",151,171,[[984,30000,74],[985,30000,101]]]
+]}
