@@ -1,0 +1,16 @@
+{"schemaVersion":1,"crawledAt":"2026-10-14T10:00:00.000Z","complete":true,"scope":{"type":7},"offerCount":18,"names":{"9002":"Drops Egg","9008":"Hunter Fly Egg","9026":"Zealotus Egg","9030":"Green Maiden Egg","9040":"Civil Servant Egg","9044":"Shinobi Egg","9047":"Wicked Nymph Egg","9054":"Nightmare Terror Egg","9060":"Egg of Domovoi","9089":"Am Mut Egg","9093":"Hyegun Egg","9102":"Mummy Egg","9109":"Sweet Drops Egg","9138":"Familiar","9141":"Wild Rose Egg","9184":"Tai Zi Egg"},"shops":[
+["Armelia","IGNORE","morocc",154,113,[[9026,199999999,1]]],
+["Farmers Market","sale","prt_mk",154,187,[[9109,6000000,1]]],
+["He eH","ET EC SSTUFF","payon",162,215,[[9138,80000000,1]]],
+["Manu Corp","Hunter Fly/ Evil Nymph Loyal <3","prt_mk",94,259,[[9008,2999999,1],[9047,16999999,1]]],
+["Mercador GG","GG","alberta",122,59,[[9044,11999999,1]]],
+["Money is Money","V1","payon",136,214,[[9040,20000000,1],[9040,20000000,1],[9102,500000,1]]],
+["Orbite","egg","morocc",170,103,[[9141,75000000,1]]],
+["Pauperis","Pasta Please!","alberta",47,228,[[9002,9999999,1]]],
+["Pezzente","vb","prt_mk",82,169,[[9060,7000000,1],[9184,15000000,1]]],
+["Pokies Pro","","prt_mk",145,151,[[9054,5000000,1]]],
+["Ramen Gai","Ino","comodo",225,127,[[9089,3400000,1]]],
+["Shurah","Green Maiden","alberta",146,59,[[9030,19500000,1]]],
+["Vending Lahh","Assyrian","payon",151,140,[[9093,17555555,1]]],
+["dimakinoy","sad","payon",151,182,[[9002,900000,1]]]
+]}
