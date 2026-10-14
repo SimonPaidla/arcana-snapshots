@@ -1,0 +1,13 @@
+{"schemaVersion":1,"crawledAt":"2026-10-14T10:00:00.000Z","complete":true,"scope":{"type":0},"offerCount":14,"names":{"505":"Blue Potion","507":"Red Herb","509":"White Herb","510":"Blue Herb","518":"Honey","568":"Lemon","608":"Yggdrasil Seed","12045":"Lutie Lady's Pancake","12058":"Tentacle Cheese Gratin","12063":"Fruit Mix","12065":"Green Salad","12074":"Tendon Satay","12076":"Red Mushroom Wine","12089":"Special Meat Stew"},"shops":[
+["Big Dollars No Bills","Market manipulation","prt_mk",196,133,[[510,2800,81],[568,750,532],[608,31000,23]]],
+["Discountzz","Hon3y","prt_mk",223,139,[[518,1000,800]]],
+["La cave a momo","La cave a Momo","alberta",32,240,[[12065,10000,350]]],
+["Money Tree","FRUITMIX + LOOTMIX","payon",151,152,[[12063,10000,26]]],
+["Money Trees","TRASH CARD +TRASH LOOTS","payon",169,233,[[509,850,914]]],
+["Seel4","Ranked Blue Potion","comodo",209,160,[[505,4500,530]]],
+["SonneLidya","aaa","prt_mk",100,31,[[12045,7500,150],[12074,100000,3]]],
+["Yuki16","^^","payon",162,216,[[507,100000,1505]]],
+["nom noms1","NomNoms","prt_mk",145,154,[[12076,30000,232]]],
+["nom noms2","NomNoms","prt_mk",145,148,[[12089,90000,80]]],
+["x3Vendor","All you need","prt_mk",193,178,[[12058,9999,46]]]
+]}
