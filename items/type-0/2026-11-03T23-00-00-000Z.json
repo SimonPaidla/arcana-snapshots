@@ -1,0 +1,11 @@
+{"schemaVersion":1,"crawledAt":"2026-11-03T23:00:00.000Z","complete":true,"scope":{"type":0},"offerCount":9,"names":{"508":"Yellow Herb","509":"White Herb","518":"Honey","526":"Royal Jelly","567":"Shrimp","608":"Yggdrasil Seed","12043":"Bomber Steak","12052":"Assorted Seafood","12095":"Hwergelmir's Tonic"},"shops":[
+["Agireda Saleswoman","thigns","prt_mk",178,148,[[12095,605000,11]]],
+["Anhseller","BAKA BAKA SHI","prt_mk",178,133,[[508,139,861]]],
+["Anhsellerthesecond","WABA WABA WABA","prt_mk",115,127,[[12052,109999,4]]],
+["Daeru Kun","dadada","comodo",225,121,[[608,31999,1]]],
+["Mercador Argentino","INFLACAO","payon",151,162,[[526,3496,1]]],
+["S L K","","morocc",192,55,[[509,540,1142]]],
+["TheAbsolute","Stuff","payon",151,165,[[518,987,708]]],
+["Vendedor123","Gettsssssssssssssssssssssssss","prt_mk",94,142,[[567,1000,776]]],
+["pgmmonney","=)","alberta",40,228,[[12043,10000,28]]]
+]}

@@ -1,0 +1,16 @@
+{"schemaVersion":1,"crawledAt":"2026-11-03T23:00:00.000Z","complete":true,"scope":{"type":3},"offerCount":45,"names":{"701":"Ora Ora","722":"Pearl","725":"Sardonyx","726":"Sapphire","727":"Opal","749":"Frozen Rose","753":"Yoyo Doll","754":"Raccoon Doll","903":"Reptile Tongue","907":"Resin","914":"Fluff","920":"Wolf Claw","921":"Mushroom Spore","932":"Skel-Bone","937":"Venom Canine","953":"Stone Heart","957":"Decayed Nail","958":"Horrendous Mouth","972":"Karvodailnirol","984":"Oridecon","985":"Elunium","1019":"Trunk","1028":"Mane","1048":"Horrendous Hair","1055":"Earthworm Peeling","1057":"Moth Dust","1061":"Witched Starsand","1067":"Solid Trunk","1099":"Worn-out Prison Uniform","6443":"Sillit Pong Bottle","6470":"Blood Thirst","6607":"Temporal Crystal","7015":"Bookclip in Memory","7066":"Ice Cubic","7188":"Brown Root","7262":"Folding Fan of Cat Ghost","7293":"Rose Quartz","7539":"Poring Coin","7561":"Glacial Heart","7751":"Old White Cloth","9302":"Color Change Voucher","11002":"Chef King Orleans Vol.1","35611":"Old Dusty Tomb Vol 2"},"shops":[
+["Anhseller","BAKA BAKA SHI","prt_mk",178,133,[[903,305,201],[914,1199,20],[932,384,80],[937,339,58],[1057,2497,18],[1067,120,92],[7015,6792,1],[7561,648,351],[7751,4199,7]]],
+["Anhsellerthesecond","WABA WABA WABA","prt_mk",115,127,[[920,98,253],[1019,800,4],[1028,6799,85],[1055,1590,8],[1061,781,36],[7066,899,364]]],
+["ArturToToSai","AT2 FAST","prt_mk",85,196,[[6470,200000,6],[6607,101749,4],[7293,200000,5]]],
+["CheapThrills","CheapThrills","alberta",49,225,[[35611,2000000,1]]],
+["Corretor Imobiliario","At","prt_mk",130,103,[[725,9000,34],[726,5900,36],[727,5800,50],[753,33200,33],[754,12000,40]]],
+["Daeru Kun","dadada","comodo",225,121,[[749,20999,13],[907,1321,67],[921,369,204],[953,1967,8],[957,1898,54],[958,618,67]]],
+["Le Moom","BB","prt_mk",178,151,[[6443,130000000,1]]],
+["Mercador Argentino","INFLACAO","payon",151,162,[[722,3598,19],[1048,835,142],[1099,1400,338],[7188,345,298],[11002,69999,1]]],
+["Mercador Paraguaio","vendendo ALMOCO","payon",151,163,[[921,460,150],[1099,16000,167]]],
+["MerchantGirl","Oridecon+Elunium","payon",151,171,[[984,18750,166],[985,18750,97]]],
+["TheAbsolute","Stuff","payon",151,165,[[7539,13800,1853]]],
+["boyitlog","Ori     /     ELU","payon",151,167,[[7262,1995,581]]],
+["iSellTrash3","++ Costumes ++","alberta",119,64,[[9302,88000,32]]],
+["wanttosellsmth","equip, pc","prt_mk",184,142,[[701,799999,2],[972,6694,458]]]
+]}
