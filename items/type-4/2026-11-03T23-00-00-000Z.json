@@ -1,0 +1,12 @@
+{"schemaVersion":1,"crawledAt":"2026-11-03T23:00:00.000Z","complete":true,"scope":{"type":4},"offerCount":23,"names":{"1147":"Town Sword","1163":"Claymore","1166":"Dragon Slayer","1186":"Death Guidance","1251":"Jur","1262":"Loki's Nail","1368":"Tomahawk","1422":"Hunting Spear","1451":"Guisarme","1501":"Club","1602":"Rod","1604":"Wand","1731":"Frozen Bow","1734":"Orc Archer Bow","1825":"Horn of Hillslion","1951":"Rope","1961":"Whip"},"shops":[
+["AUTOSELL","AUTOSELL","payon",166,49,[[1166,4850000,1],[1731,990000,1],[1731,990000,1]]],
+["Anhseller","BAKA BAKA SHI","prt_mk",178,133,[[1501,119,1]]],
+["ArturToToSai","AT2 FAST","prt_mk",85,196,[[1186,3500000,1]]],
+["Daeru Kun","dadada","comodo",225,121,[[1951,19999,1]]],
+["Fortune Money","Fortune Money Shop","prt_mk",82,238,[[1147,50000,1],[1262,250000,1],[1451,12000,1],[1451,12000,1],[1602,20000,1],[1602,20000,1],[1604,2500,1],[1604,2500,1]]],
+["MerchantGirl","Oridecon+Elunium","payon",151,171,[[1251,2750000,1,8,[]],[1251,2750000,1,8,[]],[1251,7849991,1,9,[]]]],
+["Shopping","Foods","payon",162,227,[[1825,500000,1,7,[]]]],
+["The Big Sniper","STUFF","prt_mk",178,142,[[1368,2000000,1]]],
+["TheAbsolute","Stuff","payon",151,165,[[1734,29000000,1,8,[]]]],
+["wanttosellsmth","equip, pc","prt_mk",184,142,[[1163,111111,1],[1422,209989,1],[1961,2222222,1]]]
+]}

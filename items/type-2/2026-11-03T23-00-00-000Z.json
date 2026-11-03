@@ -1,0 +1,11 @@
+{"schemaVersion":1,"crawledAt":"2026-11-03T23:00:00.000Z","complete":true,"scope":{"type":2},"offerCount":16,"names":{"603":"Old Blue Box","632":"Fatty Chubby Earthworm","644":"Gift Box","662":"Authoritative Badge","678":"Poison Bottle","12034":"Box of Panting","12103":"Bloody Branch","12105":"Taming Gift Set","12106":"Jewelry Box","12320":"Schwartzwald Pine Jubilee","12321":"Arunafeltz Desert Sandwich","12368":"Splendid Mirror","12462":"Big Magic Defense Potion","12464":"Big Defense Potion","14219":"Enriched Elunium 5 Box"},"shops":[
+["Bay1","","alberta",114,51,[[678,14499,762]]],
+["Dark Merch One","123123","alberta",122,59,[[12034,2000,225],[12105,500000,2],[12106,1100000,1],[12462,750,99],[12464,8750,48]]],
+["Le Moom","BB","prt_mk",178,151,[[12103,3600000,3]]],
+["Mercador Argentino","INFLACAO","payon",151,162,[[632,30000,20]]],
+["Satania","box","prt_mk",178,139,[[603,25000,39],[12106,3000000,1]]],
+["Shopping","Foods","payon",162,227,[[12320,25000,50],[12321,25000,50]]],
+["Vendedor123","Gettsssssssssssssssssssssssss","prt_mk",94,142,[[662,5899,363]]],
+["lonelygirl","assa","prt_mk",214,88,[[14219,6000000,1]]],
+["pgmmonney","=)","alberta",40,228,[[644,10000,121],[12368,50000,1]]]
+]}
