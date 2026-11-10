@@ -1,23 +1,32 @@
 {
-  "builtAt": "2026-10-09T10:59:30.228Z",
-  "tookMs": 5656738,
+  "builtAt": "2026-11-10T21:12:38.063Z",
+  "tookMs": 4025056,
   "rathena": {
-    "sha": "d4b8e7b8f16061cc2496d377ac8f777ce72a4f39",
-    "committedAt": "2026-10-06T09:56:48Z"
+    "sha": "1ca3e7700939ea40120cb51a777f8681ba5e84ae",
+    "committedAt": "2026-11-10T09:07:23Z"
   },
   "server": {
-    "readAt": "2026-10-09T10:59:30.225Z",
-    "items": 9094,
+    "readAt": "2026-11-10T21:12:38.060Z",
+    "items": 9189,
     "mobs": 1007,
     "drops": 5014
   },
   "counts": {
     "cards": 5593,
-    "items": 29798,
+    "items": 29812,
     "mobs": 1532,
     "drops": 5542,
     "spawns": 2115,
     "recipes": 258,
     "pets": 57
+  },
+  "sha256": {
+    "cards": "6c3ece952e15271eef5f842413584908bfbd711ea913160ec0717bcdc125caf6",
+    "items": "4967a77ccf2a1f1bf3df8a89015a90aed4c826b3877966690227367efc3777aa",
+    "mobs": "1ea536fdc6f8d63f9f1d7735bbb43e12d4ca9682d39e126499c687ae783c5d23",
+    "drops": "77f6724e9aa92900c3d04d5429691858a69f868392b3c1aa2204da93b1f65f60",
+    "spawns": "99795251db57292fe29403d5b1b0c8dfaee134407355656669b626f770fece61",
+    "recipes": "b10125fd81522bcf2b0731d2bf56ab6e24ca19afa2daecabc86cf17b18414888",
+    "pets": "803ce56ef15ce810db71db138da5d8ee208566ec8d2b49839f016dc3ee1db253"
   }
 }
