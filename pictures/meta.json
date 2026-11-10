@@ -1,17 +1,17 @@
 {
-  "builtAt": "2026-10-09T21:31:50.703Z",
-  "tookMs": 41832,
+  "builtAt": "2026-11-10T22:15:27.257Z",
+  "tookMs": 3755269,
   "process": 1,
   "counts": {
-    "icon": 7224,
-    "image": 7225,
+    "icon": 7235,
+    "image": 7236,
     "mob": 1007,
     "tile": 271,
-    "pictures": 7906,
-    "packs": 2
+    "pictures": 7926,
+    "packs": 3
   },
   "index": {
-    "sha256": "c4aebb62b77d49dd5a02ebbbb0624a2506ec22ca4354878227b2031cf36b227a",
-    "bytes": 383872
+    "sha256": "84ce2c6395d8d6a02e2d07fd7a5fffbc1fc5a664a9b2537b6ee32fd7f73f0be6",
+    "bytes": 384690
   }
 }
