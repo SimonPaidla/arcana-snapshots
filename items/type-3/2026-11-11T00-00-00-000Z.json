@@ -1,0 +1,9 @@
+{"schemaVersion":1,"crawledAt":"2026-11-11T00:00:00.000Z","complete":true,"scope":{"type":3},"offerCount":15,"names":{"713":"Empty Bottle","916":"Feather of Birds","960":"Nipper","979":"Darkgreen Dyestuffs","984":"Oridecon","985":"Elunium","1000":"Star Crumb","1023":"Fish Tail","6607":"Temporal Crystal","7047":"Alice's Apron","7100":"Sharp Leaf","7198":"Huge Leaf","7262":"Folding Fan of Cat Ghost","7443":"Three-Headed Dragon's Head","7539":"Poring Coin"},"shops":[
+["Arb1t6","S> Sharp Leaf","alberta",119,50,[[7100,1499,7832]]],
+["ElVentero","","payon",151,152,[[6607,110000,40],[7047,1500,149],[7443,630000,1]]],
+["Mercador Argentino","INFLACAO","payon",151,163,[[916,2500,19],[7539,14000,3]]],
+["MerchantGirl","Oridecon+Elunium","payon",151,162,[[984,18750,156],[985,18750,124]]],
+["Sold As Is","f a l l","prt_mk",145,139,[[713,122,1],[960,673,414],[1023,375,3600],[7198,499,907]]],
+["boyitlog","FAN","payon",151,164,[[7262,20000,569]]],
+["naetshop","Broke pls buy","prt_mk",142,91,[[979,30000,1],[1000,4100,4]]]
+]}
