@@ -1,0 +1,12 @@
+{"schemaVersion":1,"crawledAt":"2026-11-11T01:00:00.000Z","complete":true,"scope":{"type":8},"offerCount":16,"names":{"10003":"Transparent Head Protector","10004":"Pacifier","10005":"Wig","10007":"Silk Ribbon","10009":"Wild Flower","10010":"Battered Pot","10012":"Tiny Egg Shell","10014":"Rocker Glasses","10015":"Green Lace","10016":"Golden Bell","10017":"Bark Shorts"},"shops":[
+["Agatita","= ^.^ =","payon",149,200,[[10012,500000,1],[10015,20000,1],[10015,20000,1]]],
+["BillyMcScrooge","tindahan ni joe","payon",133,42,[[10007,60000,1],[10007,60000,1],[10007,60000,1],[10007,60000,1]]],
+["Cameroon","blibli","prt_mk",169,211,[[10005,80000,1]]],
+["Earth Vendor1","ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ","prt_mk",157,109,[[10003,2000000,1],[10004,2000000,1]]],
+["KiaiVenda","Kiai's Shoppe","alberta",39,245,[[10010,20000,1]]],
+["KiaiVendin","Kiai's Shoppe","alberta",39,246,[[10014,1000,1]]],
+["Pyrous","Sohee","prt_mk",112,196,[[10017,80000,1]]],
+["Sehlujeng","Take Me Out !","payon",149,209,[[10016,100000,1]]],
+["WaleDeniro","maputu","alberta",100,67,[[10009,99999,1]]],
+["maxivend","maxi's","alberta",105,59,[[10015,12500,1]]]
+]}
