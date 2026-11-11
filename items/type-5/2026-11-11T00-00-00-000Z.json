@@ -1,0 +1,7 @@
+{"schemaVersion":1,"crawledAt":"2026-11-11T00:00:00.000Z","complete":true,"scope":{"type":5},"offerCount":11,"names":{"2221":"Hat","2244":"Big Ribbon","2278":"Mr. Smile","2387":"Sprint Mail","2389":"Armor of Naga","2420":"Angel's Reincarnation","2720":"Medal of Honor","5009":"Safety Helmet"},"shops":[
+["Chibi BunnieA01","Armors1","payon",151,153,[[2387,9000000,1,0,[4721]],[2387,9000000,1,0,[4721]]]],
+["Chibi BunnieA02","Stat Armors","payon",151,151,[[2389,9000000,1,0,[4701]],[2389,15000000,1,0,[4732]]]],
+["MerchantGirl","Oridecon+Elunium","payon",151,162,[[2720,500000,1],[2720,500000,1]]],
+["Sold As Is","f a l l","prt_mk",145,139,[[2244,43999,1]]],
+["naetshop","Broke pls buy","prt_mk",142,91,[[2221,80000,1],[2278,98000,1],[2420,120000,1],[5009,20000,1]]]
+]}
